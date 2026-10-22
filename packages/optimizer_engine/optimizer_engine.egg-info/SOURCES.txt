@@ -9,3 +9,4 @@ optimizer_engine.egg-info/SOURCES.txt
 optimizer_engine.egg-info/dependency_links.txt
 optimizer_engine.egg-info/requires.txt
 optimizer_engine.egg-info/top_level.txt
+tests/test_optimizer.py
