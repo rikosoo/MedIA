@@ -14,6 +14,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    Uuid,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -290,3 +291,41 @@ class TimeConstraint(Base, IdMixin, TimestampMixin):
     min_rest_minutes: Mapped[int] = mapped_column(Integer, default=0)
     max_night_shifts: Mapped[int | None] = mapped_column(Integer, nullable=True)
     days_off: Mapped[list] = mapped_column(JSON, default=list)  # ["2026-10-12", ...]
+
+
+class MonthlyGoal(Base, IdMixin, TimestampMixin):
+    """Meta pessoal do mês. Dados de renda pessoal: visíveis só para o próprio usuário."""
+
+    __tablename__ = "monthly_goals"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "user_id", "month", "metric_type", name="uq_goal"),
+    )
+    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    month: Mapped[date] = mapped_column(Date)
+    metric_type: Mapped[str] = mapped_column(
+        String(20)
+    )  # PERSONAL_NET | CLINIC_PROFIT | GROSS_REVENUE
+    target_cents: Mapped[int] = mapped_column(BigInteger)
+    priority: Mapped[str] = mapped_column(String(20), default="BALANCED")
+    use_reserves: Mapped[bool] = mapped_column(Boolean, default=False)
+    reserve_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    notes: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class IncomePlan(Base, IdMixin, TimestampMixin):
+    """Quantas unidades de uma fonte de renda se espera no mês (`month` nulo = padrão mensal)."""
+
+    __tablename__ = "income_plans"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "source_type", "source_id", "month", name="uq_plan"),
+    )
+    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), index=True)
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    month: Mapped[date | None] = mapped_column(Date, nullable=True)
+    source_type: Mapped[str] = mapped_column(String(10))  # WORK | SERVICE
+    source_id: Mapped[uuid.UUID] = mapped_column(Uuid)
+    units: Mapped[int] = mapped_column(Integer)
+    certainty: Mapped[str] = mapped_column(String(12))  # GUARANTEED | PROBABLE
+    tax_rate_bps: Mapped[int | None] = mapped_column(Integer, nullable=True)  # estimativa

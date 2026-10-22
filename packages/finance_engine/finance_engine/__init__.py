@@ -8,7 +8,16 @@ from .consult import (
     return_month,
     returns_by_month,
 )
-from .goals import goal_gap_cents
+from .goals import (
+    Projection,
+    StreamInput,
+    StreamResult,
+    compute_stream,
+    effective_target_cents,
+    goal_gap_cents,
+    goal_status,
+    project,
+)
 from .money import format_brl, parse_brl_to_cents
 from .recurrence import occurrences_in_month
 from .returns import expected_minutes_per_new_patient, expected_revenue_per_new_patient_cents
@@ -24,6 +33,13 @@ from .schedule import (
 from .work import per_hour_cents
 
 __all__ = [
+    "Projection",
+    "StreamInput",
+    "StreamResult",
+    "compute_stream",
+    "effective_target_cents",
+    "goal_status",
+    "project",
     "Conflict",
     "Event",
     "Interval",

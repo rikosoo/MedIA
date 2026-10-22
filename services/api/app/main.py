@@ -5,6 +5,7 @@ from app.core.config import get_settings
 from app.modules.auth.router import router as auth_router
 from app.modules.clinic.router import router as clinic_router
 from app.modules.finances.router import router as finances_router
+from app.modules.goals.router import router as goals_router
 from app.modules.organizations.router import router as org_router
 from app.modules.schedule.router import router as schedule_router
 from app.modules.team.router import router as team_router
@@ -34,6 +35,7 @@ def create_app() -> FastAPI:
         clinic_router,
         finances_router,
         schedule_router,
+        goals_router,
     ):
         app.include_router(r)
     return app

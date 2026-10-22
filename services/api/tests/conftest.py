@@ -32,7 +32,8 @@ def app():
     application = create_app()
     application.dependency_overrides[get_db] = override
     application.state.session_factory = factory
-    return application
+    yield application
+    engine.dispose()  # sem isto a suíte em PostgreSQL esgota as conexões
 
 
 class Api:

@@ -10,12 +10,12 @@ Fonte: `docs/PRD.md` §18 (sprints) e §19 (backlog). Regras invioláveis: §23.
 | 1 — Perfis e rendas | Organizações, memberships, RBAC, CRUD de trabalhos com remuneração (US-001), ganho/hora, soft-delete, auditoria | 22 testes de API, incl. cross-tenant e papéis (US-010, US-012) |
 | 2 — Consultório e custos | Serviços e políticas de retorno (gratuito/parcial/integral/personalizado, prazo, janela gratuita, faltas), economia por consulta nova, capacidade, agenda de retornos por mês, simulação de preço; lançamentos de receita/despesa com competência x caixa, estornos, detecção de duplicidade e recorrências planejadas (US-002) | Motor: 27 testes (55,2 min; retorno gratuito cai no mês seguinte). API: 54 testes. Migration 0002 up/down/up em PG16. E2E em Chromium |
 | 3 — Agenda e capacidade | Disponibilidade (turno semanal), eventos (consulta, retorno, plantão, sobreaviso, CLT…), feriados com confirmação manual, férias, folgas, limites de jornada; conflitos (sobreaviso só com permissão explícita), descanso após plantão, horas ativas x comprometidas sem dupla contagem, slots reais por janela, capacidade de pacientes novos por serviço | Motor: 41 testes. API: 91 testes, também em PostgreSQL real (`TEST_DATABASE_URL`). Migration 0003 up/down/up. E2E em Chromium (achou 2 bugs de UI/CORS, corrigidos) |
+| 4 — Metas e dashboard | Meta pessoal líquida/lucro do consultório/faturamento bruto, reserva opcional (desligada por padrão), duplicar e histórico; composição do mês (planos de renda: unidades, certeza garantido/provável, retenção estimada); lacuna auditável (garantido x provável x realizado) com decomposição por fonte e premissas; dashboard com 12 meses, alertas, qualidade dos dados, horas e meta atingida só com restrições duras satisfeitas (US-003) | Motor: 55 testes. API: 121 testes, também em PostgreSQL real. Migration 0004 up/down/up. E2E em Chromium (números do navegador = números dos testes) |
 
 ## Próximas sprints
 
 | Sprint | Dependências | Critério de aceite (PRD) | Principais riscos |
 |---|---|---|---|
-| 4 Metas e dashboard | 2, 3 | Lacuna auditável (US-003); plano ≠ realizado | Dupla contagem de renda |
 | 5 Otimizador | 3, 4 | CP-SAT, 5 objetivos, validação independente, caso inviável com máximo alcançável (US-004..006) | Determinismo; unidades em centavos/minutos |
 | 6–11 | Ver PRD §18 | Realizado/CSV, relatórios, captação, IA, cobrança, hardening | LGPD, prompt injection, tributação |
 
@@ -40,3 +40,9 @@ Fonte: `docs/PRD.md` §18 (sprints) e §19 (backlog). Regras invioláveis: §23.
 - Sprint 3: o descanso é um parâmetro informado (padrão por plantão + valor por evento); não há regra legal embutida. Plantões noturnos usam a janela fixa 22h–5h.
 - Sprint 3: retornos pendentes de meses anteriores ainda não consomem capacidade automaticamente (só os eventos lançados na agenda); a alocação automática fica para o otimizador (Sprint 5).
 - Sprint 3: eventos não têm colisão de sala (sem entidade Sala); `schedule_events.linked_return_of` do PRD não foi implementado.
+- Sprint 4: a projeção é **por plano** (unidades que você informa por fonte e mês); não há aprendizado automático de sazonalidade nem previsão. Realizado nunca é somado ao projetado: aparecem lado a lado.
+- Sprint 4: despesas lançadas são abatidas integralmente e custos variáveis por unidade já estão no líquido de cada fonte; lançar o mesmo custo nos dois lugares o conta duas vezes (premissa exibida no painel, sem detecção automática).
+- Sprint 4: metas e rendas são pessoais (nem o dono vê as de outro usuário). Serviços e despesas são da organização inteira, então em clínica com vários médicos os serviços entrariam em todas as metas; atribuição de serviço a médico fica para o plano Clínica.
+- Sprint 4: tributos seguem sendo só alíquota estimada por fonte (sem motor fiscal); consultório não tem tributo próprio além da retenção informada no plano do serviço.
+- Sprint 4: "Otimizar minha meta" está desabilitado até a Sprint 5; MANAGER e ACCOUNTANT não têm acesso a metas/dashboard pessoais.
+- Sprint 4: o gráfico de 12 meses recalcula a projeção de cada mês a cada abertura (12 consultas em lote); sem cache nem snapshot.

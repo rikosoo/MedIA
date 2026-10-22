@@ -3,14 +3,14 @@
      gráficos e números financeiros é que devem chamar atenção. */
   --bg: #f6f8fb; --surface: #ffffff; --text: #0b1f3a; --muted: #52607a; --border: #d8dfea;
   --primary: #0b2a5b; --on-primary: #ffffff; --link: #0b2a5b;
-  --accent: #047857; /* esmeralda: positivo/ações de confirmação (contraste 5,5:1 sobre branco) */
+  --primary-chart: #0b2a5b; --accent: #047857; /* esmeralda: positivo/ações de confirmação (contraste 5,5:1 sobre branco) */
   --ok: #047857; --warn: #9a5b00; --err: #b3261e;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #08111f; --surface: #0f1b30; --text: #e6ecf5; --muted: #93a0b8; --border: #1f2d49;
     --primary: #34d399; --on-primary: #06231a; --link: #8fb4ff;
-    --accent: #34d399; --ok: #34d399; --warn: #e0b15a; --err: #f28b82;
+    --primary-chart: #6f9bff; --accent: #34d399; --ok: #34d399; --warn: #e0b15a; --err: #f28b82;
   }
 }
 * { box-sizing: border-box; }
@@ -46,3 +46,8 @@ th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--border);
   main { padding: 16px; }
   .tablewrap { overflow-x: auto; }
 }
+
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.kpi .value { font-size: 1.5rem; font-weight: 700; }
+.kpi .label { color: var(--muted); font-size: .9rem; }
+@media (max-width: 800px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

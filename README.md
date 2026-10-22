@@ -2,12 +2,12 @@
 
 SaaS de planejamento financeiro e otimização de agenda para médicos. Especificação completa em [`docs/PRD.md`](docs/PRD.md); plano de execução em [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md).
 
-**Estado atual: Sprints 0–3** (fundamentos, organizações, RBAC, trabalhos e rendas, consultório com retornos, receitas e despesas, agenda e capacidade). Otimizador, metas, agenda, IA etc. ainda não existem.
+**Estado atual: Sprints 0–4** (fundamentos, organizações, RBAC, trabalhos e rendas, consultório com retornos, receitas e despesas, agenda e capacidade, metas e dashboard). Otimizador, metas, agenda, IA etc. ainda não existem.
 
 ## Estrutura
 
 ```
-apps/web                 Next.js (TS) — login, shell autenticado, Trabalhos & Rendas, Consultório, Receitas & Despesas, Agenda & Capacidade
+apps/web                 Next.js (TS) — login, shell autenticado, Trabalhos & Rendas, Consultório, Receitas & Despesas, Agenda & Capacidade, Minha Meta, dashboard
 services/api             FastAPI + SQLAlchemy + Alembic
 packages/finance_engine  Cálculos puros em centavos inteiros (sem LLM, sem I/O)
 docs/                    PRD e plano
@@ -40,7 +40,7 @@ cd services/api && pytest && ruff check . && ruff format --check .
 cd apps/web && npm run lint && npm run typecheck && npm test && npm run build
 ```
 
-Os testes da API (91) e do motor (41) usam SQLite em memória por padrão; com `TEST_DATABASE_URL=postgresql+psycopg://...` a suíte da API roda em PostgreSQL real; a CI também roda as migrations (up/down/up) em PostgreSQL 16.
+Os testes da API (121) e do motor (55) usam SQLite em memória por padrão; com `TEST_DATABASE_URL=postgresql+psycopg://...` a suíte da API roda em PostgreSQL real; a CI também roda as migrations (up/down/up) em PostgreSQL 16.
 
 ## Decisões relevantes
 
