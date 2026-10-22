@@ -17,6 +17,12 @@ class Settings(BaseSettings):
     login_max_failures: int = 5
     login_lock_minutes: int = 15
     rate_limit_per_minute: int = 60  # chamadas de autenticação por IP
+    trust_proxy_headers: bool = (
+        False  # true só atrás de proxy confiável que sobrescreve X-Forwarded-For
+    )
+    max_body_bytes: int = (
+        3_000_000  # corpo máximo aceito (o import de CSV tem teto próprio de 2 MB de texto)
+    )
     billing_webhook_secret: str = ""  # vazio = webhook desligado (503)
 
 
@@ -28,4 +34,6 @@ def get_settings() -> Settings:
     s = Settings()
     if s.environment != "dev" and (s.secret_key == DEV_SECRET or not s.cookie_secure):
         raise RuntimeError("Fora de dev: defina SECRET_KEY próprio e COOKIE_SECURE=true")
+    if "*" in s.cors_origins:
+        raise RuntimeError("CORS_ORIGINS não pode conter '*' (as requisições usam cookies)")
     return s

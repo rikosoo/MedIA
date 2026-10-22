@@ -41,7 +41,7 @@ cd services/api && pytest && ruff check . && ruff format --check .
 cd apps/web && npm run lint && npm run typecheck && npm test && npm run build
 ```
 
-Os testes da API (386), do motor financeiro (101) e do otimizador (21) usam SQLite em memória por padrão; com `TEST_DATABASE_URL=postgresql+psycopg://...` a suíte da API roda em PostgreSQL real; a CI também roda as migrations (up/down/up) em PostgreSQL 16.
+Os testes da API (440), do motor financeiro (101) e do otimizador (21) usam SQLite em memória por padrão; com `TEST_DATABASE_URL=postgresql+psycopg://...` a suíte da API roda em PostgreSQL real; a CI também roda as migrations (up/down/up) em PostgreSQL 16.
 
 Operação e segurança: [docs/SECURITY.md](docs/SECURITY.md) (autenticação, LGPD, retenção, backup/restauração) e [docs/LAUNCH_CHECKLIST.md](docs/LAUNCH_CHECKLIST.md) (estado real do checklist do PRD §22). Scripts: `scripts/backup.sh`, `scripts/restore_check.sh`; retenção: `python -m app.maintenance purge`.
 

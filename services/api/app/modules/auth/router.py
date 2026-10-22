@@ -159,6 +159,8 @@ def login(body: LoginIn, response: Response, db: Session = Depends(get_db)) -> S
                 user.locked_until = now + timedelta(minutes=cfg.login_lock_minutes)
                 audit(db, action="auth.lockout", object_type="user", object_id=user.id,
                       actor_user_id=user.id)  # fmt: skip
+            audit(db, action="auth.login_failed", object_type="user", object_id=user.id,
+                  actor_user_id=user.id)  # fmt: skip
             db.commit()
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Credenciais inválidas")
     user.failed_logins, user.locked_until = 0, None

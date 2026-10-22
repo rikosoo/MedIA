@@ -31,7 +31,12 @@ from app.modules.work.router import router as work_router
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    app = FastAPI(title="FinanceMed AI API", version="0.1.0")
+    dev = settings.environment == "dev"  # documentação interativa só em desenvolvimento
+    app = FastAPI(
+        title="FinanceMed AI API", version="0.1.0",
+        docs_url="/docs" if dev else None, redoc_url="/redoc" if dev else None,
+        openapi_url="/openapi.json" if dev else None,
+    )  # fmt: skip
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[o.strip() for o in settings.cors_origins.split(",") if o.strip()],

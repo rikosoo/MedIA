@@ -148,9 +148,7 @@ def test_rate_limit_by_ip(app, monkeypatch):
     monkeypatch.setenv("RATE_LIMIT_PER_MINUTE", "5")
     get_settings.cache_clear()
     try:
-        from app.main import create_app
-
-        c = TestClient(create_app())
+        c = TestClient(app)
         codes = [
             c.post(
                 "/api/v1/auth/login", json={"email": "a@x.com", "password": "errada-errada"}

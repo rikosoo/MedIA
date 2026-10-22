@@ -30,7 +30,7 @@ CONTENT_TYPES = {"PDF": "application/pdf", "CSV": "text/csv; charset=utf-8"}
 
 class ReportIn(BaseModel):
     template: str
-    period: str = Field(min_length=4, max_length=7)  # YYYY-MM (mensal) ou YYYY (anual)
+    period: str = Field(pattern=r"^\d{4}(-(0[1-9]|1[0-2]))?$")  # YYYY-MM (mensal) ou YYYY (anual)
     format: str = Field(default="PDF", pattern="^(PDF|CSV)$")
     as_of: date | None = None  # data de referência do "ritmo do mês" (padrão: hoje)
 
@@ -117,10 +117,17 @@ def _own_report(db: Session, ctx: TenantContext, rid: uuid.UUID) -> ReportJob:
     return r
 
 
+def safe_filename(name: str) -> str:
+    """Só ASCII seguro no cabeçalho: sem aspas, quebras de linha nem separadores de caminho."""
+    import re
+
+    return re.sub(r"[^A-Za-z0-9._-]", "_", name)[:120] or "relatorio"
+
+
 def _file(r: ReportJob) -> Response:
     return Response(
         content=r.content, media_type=r.content_type,
-        headers={"Content-Disposition": f'attachment; filename="{r.filename}"',
+        headers={"Content-Disposition": f'attachment; filename="{safe_filename(r.filename)}"',
                  "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
     )  # fmt: skip
 
