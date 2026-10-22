@@ -219,7 +219,7 @@ export default function SchedulePage() {
         <h2>Turno semanal de atendimento</h2>
         <fieldset style={{ border: 0, padding: 0 }}>
           <legend>Dias da semana</legend>
-          {WEEKDAYS.map((d, i) => <label key={d} style={{ display: "inline-block", marginRight: 12, fontWeight: 400 }}><input type="checkbox" name={`wd${i}`} style={{ width: "auto", minHeight: 0 }} /> {d}</label>)}
+          {WEEKDAYS.map((d, i) => <label key={d} style={{ display: "inline-block", marginRight: 12, fontWeight: 400 }}><input type="checkbox" name={`wd${i}`} /> {d}</label>)}
         </fieldset>
         <div className="grid2">
           <div><label htmlFor="ws">Início</label><input id="ws" name="start" type="time" required defaultValue="08:00" /></div>
@@ -237,7 +237,7 @@ export default function SchedulePage() {
           <div><label htmlFor="estart">Início</label><input id="estart" name="starts" type="datetime-local" required /></div>
           <div><label htmlFor="eend">Fim</label><input id="eend" name="ends" type="datetime-local" required /></div>
         </div>
-        <label style={{ fontWeight: 400 }}><input type="checkbox" name="overlap" style={{ width: "auto", minHeight: 0 }} /> Sobreaviso pode coincidir com outra atividade (condicional ao acionamento)</label>
+        <label style={{ fontWeight: 400 }}><input type="checkbox" name="overlap" /> Sobreaviso pode coincidir com outra atividade (condicional ao acionamento)</label>
         {conflictMsg && pending && (
           <p className="error" role="alert">{conflictMsg}. Há sobreposição com outro compromisso.{" "}
             <button type="button" className="secondary" onClick={() => postEvent({ ...pending, allow_conflict: true })}>Salvar mesmo assim</button></p>
@@ -275,7 +275,7 @@ export default function SchedulePage() {
           <p className="muted">Sugestões não fecham a agenda até você confirmar. Feriados estaduais e municipais precisam ser cadastrados.</p>
           <ul style={{ paddingLeft: 18 }}>{holidays.map((h) => (
             <li key={h.id}><label style={{ fontWeight: 400, margin: 0 }}>
-              <input type="checkbox" checked={h.confirmed} style={{ width: "auto", minHeight: 0 }} onChange={(e) => run(() => call(`/api/v1/holidays/${h.id}`, { method: "PATCH", body: { confirmed: e.target.checked } }))} />{" "}
+              <input type="checkbox" checked={h.confirmed} onChange={(e) => run(() => call(`/api/v1/holidays/${h.id}`, { method: "PATCH", body: { confirmed: e.target.checked } }))} />{" "}
               {h.date.slice(8)}/{h.date.slice(5, 7)} · {h.name} {h.confirmed ? "(confirmado)" : "(sugerido)"}</label></li>))}</ul>
           <form onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); run(() => call("/api/v1/holidays", { method: "POST", body: { date: f.get("date"), name: f.get("name"), scope: "MUNICIPAL" } })); e.currentTarget.reset(); }}>
             <label htmlFor="hd">Novo feriado local</label>

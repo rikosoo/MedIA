@@ -322,9 +322,9 @@ def test_templates_follow_the_role(make_user):
         r = u.req("GET", "/api/v1/reports/templates", org_id=owner.org_id).json()
         return {t["template"] for t in r if t["allowed"]}
 
-    assert len(allowed(owner)) == 6
+    assert len(allowed(owner)) == 7
     assert allowed(acc) == {"EXPENSES"}
-    assert allowed(sec_) == set()
+    assert allowed(sec_) == {"ACQUISITION"}
     body = {"template": "MONTHLY_RESULT", "period": M, "format": "PDF"}
     assert (
         acc.req("POST", "/api/v1/reports/generate", org_id=owner.org_id, json=body).status_code

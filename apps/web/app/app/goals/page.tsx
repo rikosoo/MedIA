@@ -104,7 +104,7 @@ export default function GoalsPage() {
             <label htmlFor="reserve">Reserva que poderia usar (R$)</label>
             <input id="reserve" name="reserve" inputMode="decimal" placeholder="0,00" defaultValue={goal && goal.reserve_cents ? (goal.reserve_cents / 100).toFixed(2).replace(".", ",") : ""} />
           </div>
-          <div><label htmlFor="usereserve" style={{ fontWeight: 400 }}><input id="usereserve" type="checkbox" checked={useReserves} onChange={(e) => setUseReserves(e.target.checked)} style={{ width: "auto", minHeight: 0 }} /> Abater a reserva da meta (desligado por padrão)</label></div>
+          <div><label htmlFor="usereserve" style={{ fontWeight: 400 }}><input id="usereserve" type="checkbox" checked={useReserves} onChange={(e) => setUseReserves(e.target.checked)} /> Abater a reserva da meta (desligado por padrão)</label></div>
         </div>
         <p>
           <button type="submit" disabled={busy}>Salvar meta</button>{" "}

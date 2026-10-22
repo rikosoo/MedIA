@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.deps import TenantContext
-from app.core.rbac import P_FIN_READ, P_GOAL_READ, P_SCHED_READ
+from app.core.rbac import P_ACQ_READ, P_FIN_READ, P_GOAL_READ, P_SCHED_READ
 from app.db.models import (
     OptimizerRun,
     OptimizerScenario,
@@ -19,6 +19,7 @@ from app.db.models import (
     ScheduleEvent,
     Transaction,
 )
+from app.modules.acquisition.router import funnel_view
 from app.modules.finances.router import (
     EXPENSE_CATEGORIES,
     INCOME_CATEGORIES,
@@ -83,6 +84,12 @@ TEMPLATES = {
         {P_GOAL_READ, P_FIN_READ},
         "Receitas e despesas por competência e caixa, com todos os lançamentos.",
     ),
+    "ACQUISITION": (
+        "Captação",
+        "month",
+        {P_ACQ_READ},
+        "Funil de contatos, custo por agendamento e comparecimento, canais e gargalo.",
+    ),
     "YEAR": ("Ano", "year", {P_GOAL_READ}, "Os 12 meses do ano: meta, projetado e realizado."),
 }
 
@@ -120,6 +127,7 @@ def build(
     fn = {
         "MONTHLY_RESULT": monthly_result, "EXPENSES": expenses, "INCOME_BY_SOURCE": income_by_source,
         "OPTIMIZATION": optimization, "ACCOUNTANT": accountant, "YEAR": year,
+        "ACQUISITION": acquisition,
     }[template]  # fmt: skip
     return fn(db, ctx, m, period, now, as_of)
 
@@ -176,6 +184,17 @@ def monthly_result(db, ctx, m, period, now, as_of):
             ],
         )
     )
+
+    if ctx.can(P_ACQ_READ):
+        fv = funnel_view(month=month_str(m), service_id=None, ctx=ctx, db=db)
+        if fv["has_data"]:
+            t = fv["total"]
+            secs.append(section("Captação", [
+                ("Contatos", t["leads"]), ("Agendamentos", t["bookings"]), ("Comparecimentos", t["attended"]),
+                ("Gasto em captação", money(t["spend_cents"])),
+                ("Custo por paciente novo (comparecimento)",
+                 money(t["cost_per_attended_cents"]) if t["cost_per_attended_cents"] is not None else "-"),
+            ], notes=fv["messages"]))  # fmt: skip
 
     hours = d["hours"]
     if hours:
@@ -477,3 +496,46 @@ def year(db, ctx, m, period, now, as_of):
 def metric_label(metric: str) -> str:
     return {"PERSONAL_NET": "Líquida pessoal", "CLINIC_PROFIT": "Lucro do consultório",
             "GROSS_REVENUE": "Faturamento bruto"}[metric]  # fmt: skip
+
+
+# ---------- Captação ----------
+
+
+def acquisition(db, ctx, m, period, now, as_of):
+    fv = funnel_view(month=month_str(m), service_id=None, ctx=ctx, db=db)
+    if not fv["has_data"]:
+        return document(
+            "ACQUISITION",
+            "Captação",
+            label_month(m),
+            period,
+            [section("Sem dados", notes=["Nenhuma métrica de captação registrada neste mês."])],
+            now,
+        )
+    t = fv["total"]
+    kpis = [
+        ("Contatos", t["leads"]), ("Respondidos no prazo", t["responded_in_time"]),
+        ("Agendamentos", t["bookings"]), ("Comparecimentos", t["attended"]),
+        ("Contato -> agendamento", pct(t["lead_to_booking_bps"])),
+        ("Agendamento -> comparecimento", pct(t["booking_to_attendance_bps"])),
+        ("Gasto em captação", money(t["spend_cents"])),
+        ("Custo por agendamento", money(t["cost_per_booking_cents"]) if t["cost_per_booking_cents"] is not None else "-"),
+        ("Custo por comparecimento", money(t["cost_per_attended_cents"]) if t["cost_per_attended_cents"] is not None else "-"),
+        ("Cobertura da secretaria no mês", pct(fv["secretary_coverage_bps"])),
+    ]  # fmt: skip
+    cols = ["Canal", "Contatos", "Agend.", "Compar.", "Contato -> agend.", "Gasto", "Custo/agend."]
+    rows = [[c["channel"]["name"], c["leads"], c["bookings"], c["attended"], pct(c["lead_to_booking_bps"]),
+             money(c["spend_cents"]),
+             money(c["cost_per_booking_cents"]) if c["cost_per_booking_cents"] is not None else "-"]
+            for c in fv["by_channel"]]  # fmt: skip
+    secs = [section(f"Funil de {label_month(m)}", kpis, notes=fv["messages"]),
+            section("Por canal", tables=[table("Funil por canal", cols, rows)])]  # fmt: skip
+    if fv["bottleneck"]:
+        secs.append(section(f"Gargalo: {fv['bottleneck']['label']}", notes=[*fv["bottleneck"]["recommendations"],
+                                                                         fv["bottleneck"]["note"]]))  # fmt: skip
+    if fv["attribution"]:
+        a = fv["attribution"]
+        secs.append(section("Receita atribuída", [
+            ("Base", a["basis"]), ("Receita atribuída", money(a["attributed_revenue_cents"])),
+            ("Retorno sobre o gasto", pct(a["roi_bps"]))], notes=[a["note"]]))  # fmt: skip
+    return document("ACQUISITION", "Captação", label_month(m), period, secs, now)

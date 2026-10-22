@@ -468,3 +468,46 @@ class Notification(Base, IdMixin, TimestampMixin):
     body: Mapped[str] = mapped_column(String(300))  # genérico: sem valores financeiros
     route: Mapped[str] = mapped_column(String(60))
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class AcquisitionChannel(Base, IdMixin, TimestampMixin):
+    """Canal de captação (Google, indicação...). Só dados agregados, nunca de pacientes."""
+
+    __tablename__ = "acquisition_channels"
+    __table_args__ = (UniqueConstraint("organization_id", "name", name="uq_channel_name"),)
+    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), index=True)
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    name: Mapped[str] = mapped_column(String(100))
+    channel_type: Mapped[str] = mapped_column(String(20))
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class AcquisitionMetric(Base, IdMixin, TimestampMixin):
+    __tablename__ = "acquisition_metrics"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "month", "channel_id", name="uq_acq_month_channel"),
+    )
+    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), index=True)
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    month: Mapped[date] = mapped_column(Date)
+    channel_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("acquisition_channels.id"), index=True)
+    leads_count: Mapped[int] = mapped_column(Integer, default=0)
+    responded_in_time_count: Mapped[int] = mapped_column(Integer, default=0)
+    bookings_count: Mapped[int] = mapped_column(Integer, default=0)
+    attended_count: Mapped[int] = mapped_column(Integer, default=0)
+    spend_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+
+
+class Forecast(Base, IdMixin, TimestampMixin):
+    """Previsão salva: premissas e resultado congelados (uma hipótese, não uma promessa)."""
+
+    __tablename__ = "forecasts"
+    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    period_start: Mapped[date] = mapped_column(Date)
+    period_end: Mapped[date] = mapped_column(Date)
+    version: Mapped[str] = mapped_column(String(10))
+    assumptions_json: Mapped[dict] = mapped_column(JSON)
+    result_json: Mapped[dict] = mapped_column(JSON)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

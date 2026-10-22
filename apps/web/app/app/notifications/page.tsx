@@ -50,11 +50,11 @@ export default function NotificationsPage() {
       <div className="card">
         <h2>Preferências</h2>
         <p className="muted">Os avisos são opcionais e ficam desligados até você ligar. Eles não trazem valores financeiros: mostram só um aviso genérico, e os detalhes aparecem aqui, dentro do app.</p>
-        <label style={{ fontWeight: 600 }}><input type="checkbox" checked={st.enabled} onChange={(e) => save({ ...st, enabled: e.target.checked })} style={{ width: "auto", minHeight: 0 }} /> Receber notificações</label>
+        <label style={{ fontWeight: 600 }}><input type="checkbox" checked={st.enabled} onChange={(e) => save({ ...st, enabled: e.target.checked })} /> Receber notificações</label>
         <fieldset disabled={!st.enabled} style={{ border: 0, padding: 0 }}>
           <legend className="muted">Quais avisos</legend>
           {kinds.map((k) => (
-            <label key={k.kind} style={{ fontWeight: 400 }}><input type="checkbox" checked={st.kinds.includes(k.kind)} onChange={() => toggleKind(k.kind)} style={{ width: "auto", minHeight: 0 }} /> {k.title} <span className="muted">(no máx. 1 a cada {k.min_interval_days} dia(s))</span></label>
+            <label key={k.kind} style={{ fontWeight: 400 }}><input type="checkbox" checked={st.kinds.includes(k.kind)} onChange={() => toggleKind(k.kind)} /> {k.title} <span className="muted">(no máx. 1 a cada {k.min_interval_days} dia(s))</span></label>
           ))}
           <div className="grid2" style={{ marginTop: 8 }}>
             <div><label htmlFor="qs">Silêncio a partir das (h)</label><input id="qs" type="number" min="0" max="23" value={st.quiet_start_hour ?? ""} onChange={(e) => save({ ...st, quiet_start_hour: e.target.value === "" ? null : Number(e.target.value), quiet_end_hour: st.quiet_end_hour ?? 7 })} /></div>

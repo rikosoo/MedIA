@@ -7,7 +7,7 @@ from tests.test_goals import M, goal, setup_month, tx
 TODAY = "2026-10-20"  # 65% do mês
 NOW = "2026-10-20T10:00:00-03:00"
 ALL = ["UPDATE_REALIZED", "GOAL_BEHIND_PACE", "GOAL_GAP", "SCHEDULE_PROBLEM", "SECRETARY_NO_COVERAGE",
-       "EXPENSES_ABOVE_USUAL", "IDLE_CAPACITY", "REPORT_READY"]  # fmt: skip
+       "EXPENSES_ABOVE_USUAL", "IDLE_CAPACITY", "REPORT_READY", "CONVERSION_DROP"]  # fmt: skip
 
 
 def alerts(api, as_of=TODAY, month=M, **kw):

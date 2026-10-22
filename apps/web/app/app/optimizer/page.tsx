@@ -131,7 +131,7 @@ export default function OptimizerPage() {
           <p className="muted">Cadastre trabalhos (Trabalhos &amp; Rendas) ou serviços (Consultório) primeiro.</p>
         ) : sources.map((s) => (
           <fieldset key={s.source_id} className="card" style={{ marginBottom: 12 }}>
-            <legend><label style={{ fontWeight: 600, margin: 0 }}><input type="checkbox" name={`use-${s.source_id}`} style={{ width: "auto", minHeight: 0 }} /> {s.name} <span className="muted">({s.source_type === "WORK" ? "trabalho" : "serviço"})</span></label></legend>
+            <legend><label style={{ fontWeight: 600, margin: 0 }}><input type="checkbox" name={`use-${s.source_id}`} /> {s.name} <span className="muted">({s.source_type === "WORK" ? "trabalho" : "serviço"})</span></label></legend>
             <div className="grid2">
               <div><label htmlFor={`max-${s.source_id}`}>{s.source_type === "WORK" ? "Oportunidades disponíveis no mês" : "Máx. pacientes novos"}</label><input id={`max-${s.source_id}`} name={`max-${s.source_id}`} type="number" min="0" defaultValue={s.source_type === "WORK" ? 3 : 10} /></div>
               {s.source_type === "WORK" ? (
@@ -196,7 +196,7 @@ export default function OptimizerPage() {
                 {s.binding_constraints.length > 0 && <p className="muted">No limite: {s.binding_constraints.map((b) => b.label).join("; ")}.</p>}
               </details>
               <p>
-                <label style={{ fontWeight: 400, display: "inline" }}><input type="checkbox" checked={picked.includes(s.id)} onChange={() => toggle(s.id)} style={{ width: "auto", minHeight: 0 }} /> Comparar</label>{" "}
+                <label style={{ fontWeight: 400, display: "inline" }}><input type="checkbox" checked={picked.includes(s.id)} onChange={() => toggle(s.id)} /> Comparar</label>{" "}
                 <button type="button" className="secondary" disabled={busy} onClick={() => act(() => call(`/api/v1/optimizer/scenarios/${s.id}/save`, { method: "POST" }), "Cenário salvo.")}>Salvar cenário</button>{" "}
                 {applied[s.id] && applied[s.id].status === "APPLIED" ? (
                   <button type="button" className="secondary" disabled={busy} onClick={() => act(async () => { await call(`/api/v1/optimizer/saved-plans/${applied[s.id].id}/undo`, { method: "POST" }); setApplied((a) => ({ ...a, [s.id]: { ...a[s.id], status: "UNDONE" } })); }, "Aplicação desfeita.")}>Desfazer</button>
@@ -209,7 +209,7 @@ export default function OptimizerPage() {
 
           {run.scenarios.length > 0 && (
             <div className="card" style={{ marginTop: 16 }}>
-              <label style={{ fontWeight: 400 }}><input type="checkbox" checked={createEvents} onChange={(e) => setCreateEvents(e.target.checked)} style={{ width: "auto", minHeight: 0 }} /> Ao aplicar, também colocar os plantões/sobreavisos como eventos <em>planejados</em> na agenda</label>
+              <label style={{ fontWeight: 400 }}><input type="checkbox" checked={createEvents} onChange={(e) => setCreateEvents(e.target.checked)} /> Ao aplicar, também colocar os plantões/sobreavisos como eventos <em>planejados</em> na agenda</label>
               <p><button type="button" className="secondary" disabled={picked.length < 2 || busy} onClick={() => act(async () => setCompare(await call<Compare>("/api/v1/optimizer/compare", { method: "POST", body: { scenario_ids: picked } })), "Comparação pronta.")}>Comparar cenários ({picked.length})</button></p>
               {compare && (
                 <div className="tablewrap"><table>

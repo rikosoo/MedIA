@@ -153,7 +153,7 @@ export default function FinancesPage() {
           {status === "REALIZED" && (
             <div><label htmlFor="paid_at">Data de pagamento/recebimento</label><input id="paid_at" name="paid_at" type="date" required /></div>
           )}
-          <div><label htmlFor="reversal"><input id="reversal" name="reversal" type="checkbox" style={{ width: "auto", minHeight: 0 }} /> É um estorno</label></div>
+          <div><label htmlFor="reversal"><input id="reversal" name="reversal" type="checkbox" /> É um estorno</label></div>
         </div>
         {dup && (
           <p className="error" role="alert">

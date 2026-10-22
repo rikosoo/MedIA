@@ -19,6 +19,8 @@ describe("money", () => {
     expect(percentToBps("100")).toBe(10000);
     expect(percentToBps("100,01")).toBeNull();
     expect(percentToBps("-1")).toBeNull();
+    expect(percentToBps("120", 12_000)).toBe(12_000);
+    expect(percentToBps("120.01", 12_000)).toBeNull();
     expect(bpsToPercent(7600)).toBe("76,00%");
   });
 });

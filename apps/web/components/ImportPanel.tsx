@@ -111,7 +111,7 @@ export function ImportPanel({ month, onChanged }: { month: string; onChanged: ()
               </tr>))}</tbody>
           </table></div>
           {preview.rows.length > 50 && <p className="muted">Mostrando 50 de {preview.rows.length} linhas.</p>}
-          {preview.counts.errors > 0 && <label style={{ fontWeight: 400 }}><input type="checkbox" checked={skipInvalid} onChange={(e) => setSkipInvalid(e.target.checked)} style={{ width: "auto", minHeight: 0 }} /> Importar só as linhas válidas</label>}
+          {preview.counts.errors > 0 && <label style={{ fontWeight: 400 }}><input type="checkbox" checked={skipInvalid} onChange={(e) => setSkipInvalid(e.target.checked)} /> Importar só as linhas válidas</label>}
           <p>
             <button type="button" disabled={busy || (preview.counts.errors > 0 && !skipInvalid) || (preview.counts.new + preview.counts.reconcile === 0)} onClick={() => confirm(false)}>Confirmar importação</button>{" "}
             <button type="button" className="secondary" onClick={() => { setPreview(null); setContent(null); }}>Cancelar</button>

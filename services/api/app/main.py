@@ -2,10 +2,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
+from app.modules.acquisition.router import router as acquisition_router
 from app.modules.alerts.router import router as alerts_router
 from app.modules.auth.router import router as auth_router
 from app.modules.clinic.router import router as clinic_router
 from app.modules.finances.router import router as finances_router
+from app.modules.forecasts.router import router as forecasts_router
 from app.modules.goals.router import router as goals_router
 from app.modules.imports.router import router as imports_router
 from app.modules.optimizer.router import router as optimizer_router
@@ -48,6 +50,8 @@ def create_app() -> FastAPI:
         reports_router,
         reports_public_router,
         alerts_router,
+        acquisition_router,
+        forecasts_router,
     ):
         app.include_router(r)
     return app

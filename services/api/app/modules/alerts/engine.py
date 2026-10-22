@@ -11,7 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.deps import TenantContext
-from app.core.rbac import P_FIN_READ, P_GOAL_READ, P_SCHED_READ
+from app.core.rbac import P_ACQ_READ, P_FIN_READ, P_GOAL_READ, P_SCHED_READ
 from app.db.models import Leave, Notification, NotificationSettings, Transaction
 from app.modules.goals.projection import _realized, get_goal, month_str, shift_month
 from app.modules.schedule.router import _tz
@@ -36,6 +36,7 @@ KINDS: dict[str, tuple[str, str, int]] = {
     ),
     "EXPENSES_ABOVE_USUAL": ("As despesas do mês estão acima do habitual", "/app/finances", 14),
     "IDLE_CAPACITY": ("Há capacidade ociosa na agenda", "/app/schedule", 7),
+    "CONVERSION_DROP": ("A conversão de contatos em agendamentos caiu", "/app/acquisition", 14),
     "REPORT_READY": ("O relatório mensal está pronto", "/app/reports", 1),
 }
 
@@ -137,6 +138,21 @@ def evaluate(db: Session, ctx: TenantContext, m: date, today: date) -> list[Aler
             if avail >= 480 and free * 100 >= avail * 70:
                 add("IDLE_CAPACITY", "info", f"{round(free * 100 / avail)}% da agenda restante do mês "
                     f"({free // 60} h) está livre.")  # fmt: skip
+
+    if ctx.can(P_ACQ_READ) and phase != "FUTURE":
+        from app.modules.acquisition.router import _fun, _metrics
+        from finance_engine.funnel import combine, conversion_drop
+
+        rows = _metrics(db, ctx, m)
+        hist = [_metrics(db, ctx, shift_month(m, -i)) for i in (1, 2, 3)]
+        history = [combine([_fun(r) for r in h]) for h in hist if h]
+        if rows and history:
+            cur = combine([_fun(r) for r in rows])
+            drop = conversion_drop(cur, history)
+            if drop:
+                add("CONVERSION_DROP", "warning",
+                    f"A conversão contato -> agendamento caiu {round(drop / 100)}% contra os meses anteriores "
+                    f"({cur.leads} contatos no mês.)")  # fmt: skip
 
     if ctx.can(P_FIN_READ) and phase != "FUTURE":
         cur = _realized(db, ctx, m)["expense"]
