@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
 from app.modules.acquisition.router import router as acquisition_router
 from app.modules.alerts.router import router as alerts_router
+from app.modules.assistant.router import router as assistant_router
 from app.modules.auth.router import router as auth_router
 from app.modules.clinic.router import router as clinic_router
 from app.modules.finances.router import router as finances_router
@@ -52,6 +53,7 @@ def create_app() -> FastAPI:
         alerts_router,
         acquisition_router,
         forecasts_router,
+        assistant_router,
     ):
         app.include_router(r)
     return app

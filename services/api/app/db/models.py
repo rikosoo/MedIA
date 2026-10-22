@@ -511,3 +511,25 @@ class Forecast(Base, IdMixin, TimestampMixin):
     assumptions_json: Mapped[dict] = mapped_column(JSON)
     result_json: Mapped[dict] = mapped_column(JSON)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class AiConversation(Base, IdMixin, TimestampMixin):
+    """Conversa do consultor: pessoal (só o dono lê), nunca altera dados."""
+
+    __tablename__ = "ai_conversations"
+    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), index=True)
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    summary: Mapped[str] = mapped_column(String(200))
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class AiMessage(Base, IdMixin, TimestampMixin):
+    __tablename__ = "ai_messages"
+    conversation_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("ai_conversations.id"), index=True
+    )
+    role: Mapped[str] = mapped_column(String(10))  # USER | ASSISTANT
+    content_redacted: Mapped[str] = mapped_column(String(2000))
+    answer_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    tool_calls_json: Mapped[list] = mapped_column(JSON, default=list)
+    saved: Mapped[bool] = mapped_column(Boolean, default=False)

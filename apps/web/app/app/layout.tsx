@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { api, ApiError, type Me } from "@/lib/api";
 import { SessionContext } from "./session";
 
-// Rotas do PRD §4. Só as marcadas `ready` existem nesta entrega (Sprints 0–8).
+// Rotas do PRD §4. Só as marcadas `ready` existem nesta entrega (Sprints 0–9).
 const NAV = [
   { href: "/app/dashboard", label: "Início", ready: true },
   { href: "/app/goals", label: "Minha Meta", ready: true },
@@ -18,7 +18,7 @@ const NAV = [
   { href: "/app/taxes", label: "Tributos PF/PJ" },
   { href: "/app/acquisition", label: "Captação", ready: true },
   { href: "/app/forecasts", label: "Previsões", ready: true },
-  { href: "/app/assistant", label: "Consultor IA" },
+  { href: "/app/assistant", label: "Consultor IA", ready: true },
   { href: "/app/reports", label: "Relatórios", ready: true },
   { href: "/app/team", label: "Equipe" },
   { href: "/app/billing", label: "Planos & Cobrança" },
