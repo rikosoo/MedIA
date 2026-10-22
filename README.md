@@ -17,21 +17,23 @@ infra/docker             Dockerfiles
 
 ## Rodando
 
-Requisitos: Python 3.11+, Node 22, Docker (ou um PostgreSQL 16).
+Requisitos: Python 3.11+, Node 22 e um PostgreSQL 16 (via Docker ou instalado na máquina).
 
-```bash
-cp .env.example .env
-docker compose up db -d                       # PostgreSQL
+1. **Banco de dados.** Com Docker: `docker compose up db -d`. Sem Docker, crie no seu PostgreSQL o usuário `financemed` (senha `financemed`) e o banco `financemed`.
+2. **Variáveis de ambiente.** `cp .env.example .env` na raiz. Os valores padrão já funcionam em dev (a API usa os mesmos defaults se não houver `.env`). Em `ENVIRONMENT=prod` é obrigatório definir `SECRET_KEY` próprio e `COOKIE_SECURE=true`.
+3. **API.**
+   ```bash
+   python -m venv .venv && . .venv/bin/activate
+   pip install -e packages/finance_engine -e packages/optimizer_engine -e "services/api[dev]"
+   cd services/api && alembic upgrade head
+   uvicorn app.main:app --reload      # http://localhost:8000/docs (health: /health)
+   ```
+4. **Web** (outro terminal): `cd apps/web && npm ci && npm run dev` → http://localhost:3000. A URL da API vem de `NEXT_PUBLIC_API_URL` (padrão `http://localhost:8000`).
+5. **Primeiro acesso.** Não há usuário de exemplo: crie sua conta em http://localhost:3000/login (aceitando os termos) e a organização é criada junto.
 
-python -m venv .venv && . .venv/bin/activate
-pip install -e packages/finance_engine -e packages/optimizer_engine -e "services/api[dev]"
-cd services/api && alembic upgrade head
-uvicorn app.main:app --reload                 # http://localhost:8000/docs
+Alternativa: `docker compose up --build` sobe banco, API (com migrations) e web.
 
-cd apps/web && npm ci && npm run dev          # http://localhost:3000
-```
-
-Tudo via Docker: `docker compose up --build` (API aplica as migrations ao subir).
+Observação: o `.env` é lido a partir do diretório em que a API roda (`services/api`); como todos os valores têm default, só copie o arquivo para lá se for alterar algo.
 
 ## Testes e lint
 
