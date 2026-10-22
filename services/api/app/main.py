@@ -1,0 +1,31 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.core.config import get_settings
+from app.modules.auth.router import router as auth_router
+from app.modules.organizations.router import router as org_router
+from app.modules.team.router import router as team_router
+from app.modules.work.router import router as work_router
+
+
+def create_app() -> FastAPI:
+    settings = get_settings()
+    app = FastAPI(title="FinanceMed AI API", version="0.1.0")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[o.strip() for o in settings.cors_origins.split(",") if o.strip()],
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PATCH", "DELETE"],
+        allow_headers=["Content-Type", "X-CSRF-Token", "X-Organization-Id"],
+    )
+
+    @app.get("/health", tags=["health"])
+    def health() -> dict[str, str]:
+        return {"status": "ok"}
+
+    for r in (auth_router, org_router, team_router, work_router):
+        app.include_router(r)
+    return app
+
+
+app = create_app()

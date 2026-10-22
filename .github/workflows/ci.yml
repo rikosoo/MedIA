@@ -1,0 +1,43 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_USER: financemed, POSTGRES_PASSWORD: financemed, POSTGRES_DB: financemed }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U financemed" --health-interval 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://financemed:financemed@localhost:5432/financemed
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13" }
+      - run: pip install -e packages/finance_engine -e "services/api[dev]"
+      - run: ruff check packages services && ruff format --check packages services
+      - run: pytest packages/finance_engine
+      - run: pytest
+        working-directory: services/api
+      - name: Migrations (up/down/up)
+        working-directory: services/api
+        run: alembic upgrade head && alembic downgrade base && alembic upgrade head
+
+  web:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: apps/web } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: apps/web/package-lock.json }
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build

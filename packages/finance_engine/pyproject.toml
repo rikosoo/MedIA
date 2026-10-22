@@ -1,0 +1,15 @@
+[project]
+name = "finance-engine"
+version = "0.1.0"
+description = "Cálculos financeiros puros do FinanceMed AI (centavos inteiros, sem LLM)"
+requires-python = ">=3.11"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["finance_engine"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
