@@ -12,7 +12,12 @@ cleanup() { psql "$admin" -qc "DROP DATABASE IF EXISTS $tmp" >/dev/null 2>&1 || 
 trap cleanup EXIT
 psql "$admin" -qc "CREATE DATABASE $tmp"
 target="${src%/*}/$tmp"
-pg_restore --no-owner --no-privileges --dbname "$target" "$dump"
+# Um pg_restore mais novo que o servidor emite `SET transaction_timeout` (PG17+), que o servidor
+# antigo rejeita: é inofensivo e faz o pg_restore sair com erro. Qualquer OUTRO erro reprova.
+err="$(mktemp)"
+pg_restore --no-owner --no-privileges --dbname "$target" "$dump" 2>"$err" || true
+other="$(grep -E "error:|ERROR:" "$err" | grep -v "transaction_timeout" | grep -v "errors ignored on restore" || true)"
+if [ -n "$other" ]; then echo "pg_restore falhou:"; echo "$other"; exit 1; fi
 counts() {  # "tabela contagem" ordenado, para todas as tabelas do schema public
   psql "$1" -Atc "SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' ORDER BY 1" |
     while read -r t; do echo "$t $(psql "$1" -Atc "SELECT count(*) FROM \"$t\"")"; done
