@@ -1,11 +1,12 @@
 import enum
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     JSON,
     BigInteger,
     Boolean,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -137,3 +138,82 @@ class AuditLog(Base, IdMixin):
     object_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     metadata_json: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
+class ReturnPolicy(Base, IdMixin, TimestampMixin):
+    __tablename__ = "return_policies"
+    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), index=True)
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    name: Mapped[str] = mapped_column(String(200))
+    occurrence_rate_bps: Mapped[int] = mapped_column(Integer)  # % de pacientes que retornam
+    delay_days: Mapped[int] = mapped_column(Integer)
+    duration_mode: Mapped[str] = mapped_column(String(10))  # MINUTES | PERCENT
+    duration_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    duration_percent_bps: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    price_mode: Mapped[str] = mapped_column(String(10))  # FREE | PARTIAL | FULL | CUSTOM
+    price_percent_bps: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    price_cents: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    free_within_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    no_show_rate_bps: Mapped[int] = mapped_column(Integer, default=0)
+    cost_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ClinicService(Base, IdMixin, TimestampMixin):
+    __tablename__ = "clinic_services"
+    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), index=True)
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    name: Mapped[str] = mapped_column(String(200))
+    price_cents: Mapped[int] = mapped_column(BigInteger)
+    duration_minutes: Mapped[int] = mapped_column(Integer)
+    cost_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    fee_bps: Mapped[int] = mapped_column(Integer, default=0)  # taxa de cartão/meio de pagamento
+    no_show_rate_bps: Mapped[int] = mapped_column(Integer, default=0)
+    return_policy_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("return_policies.id"), nullable=True
+    )
+    status: Mapped[str] = mapped_column(String(20), default="active")
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class Recurrence(Base, IdMixin, TimestampMixin):
+    """Regra de despesa recorrente. Projeta valores (planejado); não é dinheiro realizado."""
+
+    __tablename__ = "recurrences"
+    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), index=True)
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    description: Mapped[str] = mapped_column(String(200))
+    category: Mapped[str] = mapped_column(String(40))
+    amount_cents: Mapped[int] = mapped_column(BigInteger)
+    frequency: Mapped[str] = mapped_column(String(10))  # MONTHLY | YEARLY
+    start_date: Mapped[date] = mapped_column(Date)
+    stop_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class Transaction(Base, IdMixin, TimestampMixin):
+    __tablename__ = "transactions"
+    __table_args__ = (
+        Index("ix_tx_org_competence", "organization_id", "competence_month"),
+        Index("ix_tx_org_dedupe", "organization_id", "dedupe_hash"),
+    )
+    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), index=True)
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    type: Mapped[str] = mapped_column(String(10))  # INCOME | EXPENSE
+    status: Mapped[str] = mapped_column(String(10))  # PLANNED | REALIZED
+    competence_month: Mapped[date] = mapped_column(Date)  # sempre dia 1
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    paid_at: Mapped[date | None] = mapped_column(Date, nullable=True)  # data de caixa
+    amount_cents: Mapped[int] = mapped_column(BigInteger)  # sempre positivo
+    is_reversal: Mapped[bool] = mapped_column(Boolean, default=False)  # estorno inverte o sinal
+    category: Mapped[str] = mapped_column(String(40))
+    description: Mapped[str] = mapped_column(String(200))
+    is_fixed: Mapped[bool] = mapped_column(Boolean, default=False)
+    work_source_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("work_sources.id"), nullable=True
+    )
+    recurrence_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("recurrences.id"), nullable=True
+    )
+    dedupe_hash: Mapped[str] = mapped_column(String(64))
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
