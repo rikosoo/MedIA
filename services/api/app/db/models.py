@@ -11,6 +11,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
     String,
     Text,
     UniqueConstraint,
@@ -408,3 +409,62 @@ class ImportJob(Base, IdMixin, TimestampMixin):
     errors_json: Mapped[list] = mapped_column(JSON, default=list)
     result_json: Mapped[dict] = mapped_column(JSON, default=dict)
     undone_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ReportJob(Base, IdMixin, TimestampMixin):
+    """Relatório gerado. O arquivo fica guardado até `expires_at` (retenção limitada)."""
+
+    __tablename__ = "report_jobs"
+    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), index=True)
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    template: Mapped[str] = mapped_column(String(20))
+    period: Mapped[str] = mapped_column(String(7))  # YYYY-MM ou YYYY
+    format: Mapped[str] = mapped_column(String(4))  # PDF | CSV
+    state: Mapped[str] = mapped_column(String(10), default="DONE")
+    filename: Mapped[str] = mapped_column(String(200))
+    content_type: Mapped[str] = mapped_column(String(60))
+    size_bytes: Mapped[int] = mapped_column(Integer)
+    content: Mapped[bytes] = mapped_column(LargeBinary)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ReportShare(Base, IdMixin, TimestampMixin):
+    """Link temporário (ex.: para o contador). Só o hash do token fica no banco."""
+
+    __tablename__ = "report_shares"
+    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), index=True)
+    report_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("report_jobs.id"), index=True)
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    access_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_access_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class NotificationSettings(Base, IdMixin, TimestampMixin):
+    """Alertas são opt-in: desligados até o usuário ligar e escolher os tipos."""
+
+    __tablename__ = "notification_settings"
+    __table_args__ = (UniqueConstraint("organization_id", "user_id", name="uq_notif_settings"),)
+    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    kinds: Mapped[list] = mapped_column(JSON, default=list)
+    quiet_start_hour: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    quiet_end_hour: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
+class Notification(Base, IdMixin, TimestampMixin):
+    __tablename__ = "notifications"
+    __table_args__ = (Index("ix_notif_user_kind", "organization_id", "user_id", "kind"),)
+    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(30))
+    ref: Mapped[str] = mapped_column(String(7))  # competência a que se refere
+    channel: Mapped[str] = mapped_column(String(10), default="IN_APP")
+    title: Mapped[str] = mapped_column(String(200))
+    body: Mapped[str] = mapped_column(String(300))  # genérico: sem valores financeiros
+    route: Mapped[str] = mapped_column(String(60))
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
