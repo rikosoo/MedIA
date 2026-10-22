@@ -15,6 +15,7 @@ const NAV = [
   { href: "/app/clinic", label: "Consultório", ready: true },
   { href: "/app/schedule", label: "Agenda & Capacidade", ready: true },
   { href: "/app/finances", label: "Receitas & Despesas", ready: true },
+  { href: "/app/costs", label: "Custos & Equilíbrio", ready: true },
   { href: "/app/taxes", label: "Tributos PF/PJ" },
   { href: "/app/acquisition", label: "Captação", ready: true },
   { href: "/app/forecasts", label: "Previsões", ready: true },
