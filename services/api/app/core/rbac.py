@@ -14,6 +14,7 @@ P_FIN_READ = "finance:read"
 P_FIN_WRITE = "finance:write"
 P_GOAL_READ = "goal:read"
 P_GOAL_WRITE = "goal:write"
+P_BILLING = "billing:manage"  # só o dono
 P_ACQ_READ = "acquisition:read"
 P_ACQ_WRITE = "acquisition:write"
 P_SCHED_READ = "schedule:read"
@@ -28,7 +29,15 @@ _SCHED_ALL = _SCHED_OWN | {P_SCHED_ALL}
 
 ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
     Role.OWNER: frozenset(
-        {P_ORG_UPDATE, P_TEAM_MANAGE, P_TEAM_READ, P_WORK_READ_OWN, P_WORK_READ_ALL, P_WORK_WRITE}
+        {
+            P_ORG_UPDATE,
+            P_BILLING,
+            P_TEAM_MANAGE,
+            P_TEAM_READ,
+            P_WORK_READ_OWN,
+            P_WORK_READ_ALL,
+            P_WORK_WRITE,
+        }
         | _CLINIC_RW
         | _SCHED_ALL
         | _GOALS

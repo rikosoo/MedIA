@@ -6,6 +6,8 @@ from app.modules.acquisition.router import router as acquisition_router
 from app.modules.alerts.router import router as alerts_router
 from app.modules.assistant.router import router as assistant_router
 from app.modules.auth.router import router as auth_router
+from app.modules.billing.router import router as billing_router
+from app.modules.billing.router import webhook_router as billing_webhook_router
 from app.modules.clinic.router import router as clinic_router
 from app.modules.finances.router import router as finances_router
 from app.modules.forecasts.router import router as forecasts_router
@@ -29,7 +31,7 @@ def create_app() -> FastAPI:
         allow_origins=[o.strip() for o in settings.cors_origins.split(",") if o.strip()],
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
-        allow_headers=["Content-Type", "X-CSRF-Token", "X-Organization-Id"],
+        allow_headers=["Content-Type", "X-CSRF-Token", "X-Organization-Id", "Idempotency-Key"],
     )
 
     @app.get("/health", tags=["health"])
@@ -54,6 +56,8 @@ def create_app() -> FastAPI:
         acquisition_router,
         forecasts_router,
         assistant_router,
+        billing_router,
+        billing_webhook_router,
     ):
         app.include_router(r)
     return app

@@ -11,9 +11,9 @@ export class ApiError extends Error {
 
 export async function api<T>(
   path: string,
-  opts: { method?: string; body?: unknown; csrf?: string; orgId?: string } = {},
+  opts: { method?: string; body?: unknown; csrf?: string; orgId?: string; headers?: Record<string, string> } = {},
 ): Promise<T> {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { ...opts.headers };
   if (opts.body !== undefined) headers["Content-Type"] = "application/json";
   if (opts.csrf) headers["X-CSRF-Token"] = opts.csrf;
   if (opts.orgId) headers["X-Organization-Id"] = opts.orgId;

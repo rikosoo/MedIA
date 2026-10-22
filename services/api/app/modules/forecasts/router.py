@@ -13,6 +13,7 @@ from app.db.base import utcnow
 from app.db.models import Forecast, Holiday, Leave, WorkSource
 from app.db.session import get_db
 from app.modules.acquisition.router import secretary_coverage_bps
+from app.modules.billing.entitlements import require_feature
 from app.modules.finances.router import summary as finance_summary
 from app.modules.goals.projection import (
     _realized,
@@ -263,6 +264,7 @@ def run_forecast(db: Session, ctx: TenantContext, body: ForecastIn, now: datetim
 def run(body: ForecastIn, ctx: TenantContext = Depends(get_tenant), db: Session = Depends(get_db)):
     """Projeta os próximos 3, 6 ou 12 meses em três cenários. Só grava se `save=true`."""
     ctx.require(P_GOAL_READ)
+    require_feature(db, ctx, "forecasts")
     if body.save:
         ctx.require(P_GOAL_WRITE)
     out = run_forecast(db, ctx, body, datetime.now(UTC))

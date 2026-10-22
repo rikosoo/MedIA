@@ -12,6 +12,7 @@ from app.core.rbac import P_GOAL_READ, P_GOAL_WRITE, P_SCHED_READ
 from app.db.base import utcnow
 from app.db.models import ClinicService, IncomePlan, MonthlyGoal, WorkSource
 from app.db.session import get_db
+from app.modules.billing.entitlements import check_goal_limit as check_limit_for_month
 from app.modules.goals.projection import (
     breakdown,
     build_gap,
@@ -131,6 +132,8 @@ def create_goal(
 ):
     ctx.require(P_GOAL_WRITE)
     m = _month(body.month)
+    if not _exists(db, ctx, m, body.metric_type):
+        check_limit_for_month(db, ctx, m)
     if _exists(db, ctx, m, body.metric_type):
         raise HTTPException(409, "Já existe uma meta deste tipo para o mês. Edite a existente.")
     g = _upsert_goal(
@@ -185,6 +188,7 @@ def duplicate_goal(
     m = _month(body.month)
     if _exists(db, ctx, m, src.metric_type):
         raise HTTPException(409, "Já existe uma meta deste tipo para o mês de destino.")
+    check_limit_for_month(db, ctx, m)
     g = _upsert_goal(
         db, ctx, m, src.metric_type, target_cents=src.target_cents, priority=src.priority,
         use_reserves=src.use_reserves, reserve_cents=src.reserve_cents, notes=src.notes,

@@ -13,6 +13,7 @@ from app.db.base import utcnow
 from app.db.models import AiConversation, AiMessage
 from app.db.session import get_db
 from app.modules.assistant.engine import SUGGESTED, answer, redact
+from app.modules.billing.entitlements import check_limit, require_feature
 
 router = APIRouter(prefix="/api/v1/assistant", tags=["assistant"])
 
@@ -62,6 +63,8 @@ def suggestions(ctx: TenantContext = Depends(get_tenant)):
 def chat(body: ChatIn, ctx: TenantContext = Depends(get_tenant), db: Session = Depends(get_db)):
     """Responde com números já calculados pelo motor. Somente leitura: nada é alterado."""
     ctx.require(P_GOAL_READ)
+    require_feature(db, ctx, "assistant")
+    check_limit(db, ctx, "assistant_per_day")
     start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
     used = db.scalar(
         select(func.count(AiMessage.id))

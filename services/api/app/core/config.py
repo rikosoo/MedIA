@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     cookie_secure: bool = False  # True em staging/prod (HTTPS)
     cors_origins: str = "http://localhost:3000"
     environment: str = "dev"
+    billing_webhook_secret: str = ""  # vazio = webhook desligado (503)
 
 
 @lru_cache

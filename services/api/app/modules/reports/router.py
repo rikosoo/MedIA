@@ -14,6 +14,7 @@ from app.core.rbac import P_FIN_READ, P_GOAL_READ, P_SCHED_READ
 from app.db.base import utcnow
 from app.db.models import ImportJob, ReportJob, ReportShare, Transaction
 from app.db.session import get_db
+from app.modules.billing.entitlements import require_feature
 from app.modules.finances.router import _tx_q, parse_month
 from app.modules.goals.projection import get_goal, month_str, shift_month
 from app.modules.reports.builders import TEMPLATES, build, label_month
@@ -57,6 +58,7 @@ def preview(
     body: ReportIn, ctx: TenantContext = Depends(get_tenant), db: Session = Depends(get_db)
 ):
     """Conteúdo estruturado do relatório, sem gerar arquivo nem guardar nada."""
+    require_feature(db, ctx, "reports")
     return build(db, ctx, body.template, body.period, _now(), _as_of(db, ctx, body.as_of))
 
 
@@ -77,6 +79,7 @@ def _aware(dt: datetime) -> datetime:
 def generate(
     body: ReportIn, ctx: TenantContext = Depends(get_tenant), db: Session = Depends(get_db)
 ):
+    require_feature(db, ctx, "reports")
     now = _now()
     doc = build(db, ctx, body.template, body.period, now, _as_of(db, ctx, body.as_of))
     data = to_pdf_bytes(doc) if body.format == "PDF" else to_csv_bytes(doc)

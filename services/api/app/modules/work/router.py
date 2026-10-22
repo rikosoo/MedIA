@@ -11,6 +11,7 @@ from app.core.rbac import P_WORK_READ_ALL, P_WORK_READ_OWN, P_WORK_WRITE
 from app.db.base import utcnow
 from app.db.models import IncomeRule, Regime, UnitType, WorkSource, WorkType
 from app.db.session import get_db
+from app.modules.billing.entitlements import check_limit
 from finance_engine import per_hour_cents
 
 router = APIRouter(prefix="/api/v1/work-sources", tags=["work-sources"])
@@ -134,6 +135,7 @@ def create_work(
     body: WorkSourceIn, ctx: TenantContext = Depends(get_tenant), db: Session = Depends(get_db)
 ) -> WorkSourceOut:
     ctx.require(P_WORK_WRITE)
+    check_limit(db, ctx, "works")
     w = WorkSource(
         organization_id=ctx.organization_id,
         owner_user_id=ctx.user.id,

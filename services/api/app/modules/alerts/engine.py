@@ -11,7 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.deps import TenantContext
-from app.core.rbac import P_ACQ_READ, P_FIN_READ, P_GOAL_READ, P_SCHED_READ
+from app.core.rbac import P_ACQ_READ, P_BILLING, P_FIN_READ, P_GOAL_READ, P_SCHED_READ
 from app.db.models import Leave, Notification, NotificationSettings, Transaction
 from app.modules.goals.projection import _realized, get_goal, month_str, shift_month
 from app.modules.schedule.router import _tz
@@ -37,6 +37,7 @@ KINDS: dict[str, tuple[str, str, int]] = {
     "EXPENSES_ABOVE_USUAL": ("As despesas do mês estão acima do habitual", "/app/finances", 14),
     "IDLE_CAPACITY": ("Há capacidade ociosa na agenda", "/app/schedule", 7),
     "CONVERSION_DROP": ("A conversão de contatos em agendamentos caiu", "/app/acquisition", 14),
+    "SUBSCRIPTION_AT_RISK": ("Há um problema com o pagamento da assinatura", "/app/billing", 3),
     "REPORT_READY": ("O relatório mensal está pronto", "/app/reports", 1),
 }
 
@@ -75,6 +76,14 @@ def evaluate(db: Session, ctx: TenantContext, m: date, today: date) -> list[Aler
 
     def add(kind, severity, detail):
         out.append(Alert(kind, severity, KINDS[kind][0], detail, KINDS[kind][1], ref))
+
+    if ctx.can(P_BILLING):
+        from app.modules.billing.entitlements import get_sub
+
+        if get_sub(db, ctx.organization_id).state == "PAST_DUE":
+            add("SUBSCRIPTION_AT_RISK", "warning",
+                "O último pagamento da assinatura falhou. Atualize a forma de pagamento para não "
+                "perder os recursos pagos.")  # fmt: skip
 
     if ctx.can(P_GOAL_READ) and phase == "OPEN":
         from app.modules.goals.projection import build_gap

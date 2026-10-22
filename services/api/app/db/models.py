@@ -533,3 +533,50 @@ class AiMessage(Base, IdMixin, TimestampMixin):
     answer_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     tool_calls_json: Mapped[list] = mapped_column(JSON, default=list)
     saved: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class Subscription(Base, IdMixin, TimestampMixin):
+    """Assinatura SaaS da organização. Sem provedor real: `provider` = simulated (ver docs)."""
+
+    __tablename__ = "subscriptions"
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id"), unique=True, index=True
+    )
+    plan: Mapped[str] = mapped_column(String(10), default="FREE")  # FREE|PRO|PRO_AI|CLINIC
+    state: Mapped[str] = mapped_column(String(10), default="ACTIVE")  # ACTIVE | PAST_DUE
+    trial_ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    current_period_end: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    cancel_at_period_end: Mapped[bool] = mapped_column(Boolean, default=False)
+    pending_plan: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    past_due_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    provider: Mapped[str] = mapped_column(String(20), default="simulated")
+    provider_customer_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    payment_token: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    payment_brand: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    payment_last4: Mapped[str | None] = mapped_column(String(4), nullable=True)
+
+
+class Invoice(Base, IdMixin, TimestampMixin):
+    __tablename__ = "invoices"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "idempotency_key", name="uq_invoice_idem"),
+    )
+    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), index=True)
+    number: Mapped[str] = mapped_column(String(20))
+    description: Mapped[str] = mapped_column(String(200))
+    amount_cents: Mapped[int] = mapped_column(BigInteger)
+    status: Mapped[str] = mapped_column(String(10))  # PAID | FAILED
+    period_start: Mapped[date | None] = mapped_column(Date, nullable=True)
+    period_end: Mapped[date | None] = mapped_column(Date, nullable=True)
+    idempotency_key: Mapped[str | None] = mapped_column(String(80), nullable=True)
+
+
+class BillingEvent(Base, IdMixin, TimestampMixin):
+    """Eventos do provedor já processados (webhook idempotente)."""
+
+    __tablename__ = "billing_events"
+    event_id: Mapped[str] = mapped_column(String(80), unique=True)
+    event_type: Mapped[str] = mapped_column(String(60))
+    organization_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)

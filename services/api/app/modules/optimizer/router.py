@@ -21,6 +21,7 @@ from app.db.models import (
     WorkSource,
 )
 from app.db.session import get_db
+from app.modules.billing.entitlements import check_limit
 from app.modules.goals.projection import effective_plans, month_numbers, month_str
 from app.modules.optimizer.builder import LABELS, build, explain, infeasible_out, render
 from app.modules.schedule.router import _assess, _tz
@@ -140,6 +141,7 @@ def create_run(
     body: RunIn, ctx: TenantContext = Depends(get_tenant), db: Session = Depends(get_db)
 ):
     ctx.require(P_GOAL_WRITE)
+    check_limit(db, ctx, "optimizer_runs_per_month")
     t0 = _time.perf_counter()
     b = build(db, ctx, body)
     objectives = tuple(o for o in OBJECTIVES if o in (body.objectives or OBJECTIVES))
