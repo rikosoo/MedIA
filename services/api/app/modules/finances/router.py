@@ -11,9 +11,9 @@ from app.core.audit import audit
 from app.core.deps import TenantContext, get_tenant
 from app.core.rbac import P_FIN_READ, P_FIN_WRITE, P_WORK_READ_ALL
 from app.db.base import utcnow
-from app.db.models import Recurrence, Transaction, WorkSource
+from app.db.models import ClinicService, Recurrence, Transaction, WorkSource
 from app.db.session import get_db
-from finance_engine import occurrences_in_month
+from finance_engine import format_amount, occurrences_in_month, to_csv
 
 router = APIRouter(prefix="/api/v1", tags=["finances"])
 
@@ -64,10 +64,14 @@ class TransactionIn(BaseModel):
     description: str = Field(min_length=1, max_length=200)
     is_fixed: bool = False
     work_source_id: uuid.UUID | None = None
+    clinic_service_id: uuid.UUID | None = None
+    units: int | None = Field(default=None, ge=0, le=100_000)
     allow_duplicate: bool = False
 
     @model_validator(mode="after")
     def _coherent(self):
+        if self.work_source_id and self.clinic_service_id:
+            raise ValueError("vincule a um trabalho ou a um serviço, não aos dois")
         cats = EXPENSE_CATEGORIES if self.type == "EXPENSE" else INCOME_CATEGORIES
         if self.category not in cats:
             raise ValueError("categoria inválida para o tipo do lançamento")
@@ -90,6 +94,8 @@ class TransactionPatch(BaseModel):
     description: str | None = None
     is_fixed: bool | None = None
     work_source_id: uuid.UUID | None = None
+    clinic_service_id: uuid.UUID | None = None
+    units: int | None = None
 
 
 def _signed(t: Transaction) -> int:
@@ -113,7 +119,10 @@ def _tx_out(t: Transaction) -> dict:
         "description": t.description,
         "is_fixed": t.is_fixed,
         "work_source_id": str(t.work_source_id) if t.work_source_id else None,
+        "clinic_service_id": str(t.clinic_service_id) if t.clinic_service_id else None,
+        "units": t.units,
         "recurrence_id": str(t.recurrence_id) if t.recurrence_id else None,
+        "import_job_id": str(t.import_job_id) if t.import_job_id else None,
     }
 
 
@@ -159,6 +168,20 @@ def _check_work_ref(db: Session, ctx: TenantContext, wid: uuid.UUID | None) -> N
         raise HTTPException(422, "Trabalho inválido")
 
 
+def _check_service_ref(db: Session, ctx: TenantContext, sid: uuid.UUID | None) -> None:
+    if sid is None:
+        return
+    ok = db.scalar(
+        select(ClinicService.id).where(
+            ClinicService.id == sid,
+            ClinicService.organization_id == ctx.organization_id,
+            ClinicService.deleted_at.is_(None),
+        )
+    )
+    if ok is None:
+        raise HTTPException(422, "Serviço inválido")
+
+
 def _check_duplicate(
     db: Session, ctx: TenantContext, h: str, exclude: uuid.UUID | None = None
 ) -> None:
@@ -197,6 +220,7 @@ def create_transaction(
 ):
     ctx.require(P_FIN_WRITE)
     _check_work_ref(db, ctx, body.work_source_id)
+    _check_service_ref(db, ctx, body.clinic_service_id)
     h = _dedupe_hash(body)
     if not body.allow_duplicate:
         _check_duplicate(db, ctx, h)
@@ -236,6 +260,7 @@ def update_transaction(
         "due_date": t.due_date, "paid_at": t.paid_at, "amount_cents": t.amount_cents,
         "is_reversal": t.is_reversal, "category": t.category, "description": t.description,
         "is_fixed": t.is_fixed, "work_source_id": t.work_source_id,
+        "clinic_service_id": t.clinic_service_id, "units": t.units,
     }  # fmt: skip
     try:
         valid = TransactionIn(**(current | body.model_dump(exclude_unset=True)))
@@ -243,6 +268,8 @@ def update_transaction(
         raise HTTPException(422, exc.errors()[0]["msg"]) from None
     if "work_source_id" in body.model_fields_set:
         _check_work_ref(db, ctx, valid.work_source_id)
+    if "clinic_service_id" in body.model_fields_set:
+        _check_service_ref(db, ctx, valid.clinic_service_id)
     h = _dedupe_hash(valid)
     _check_duplicate(db, ctx, h, exclude=t.id)
     for k, v in valid.model_dump(exclude={"allow_duplicate", "type"}).items():
@@ -258,6 +285,91 @@ def update_transaction(
     )
     db.commit()
     return _tx_out(t)
+
+
+class RealizeIn(BaseModel):
+    paid_at: date
+
+
+@router.post("/transactions/{tx_id}/realize")
+def realize_transaction(
+    tx_id: uuid.UUID,
+    body: RealizeIn,
+    ctx: TenantContext = Depends(get_tenant),
+    db: Session = Depends(get_db),
+):
+    """Transforma um lançamento PLANEJADO em REALIZADO (dinheiro que de fato entrou/saiu)."""
+    ctx.require(P_FIN_WRITE)
+    t = _get_tx(db, ctx, tx_id)
+    if t.status != "PLANNED":
+        raise HTTPException(409, "Só lançamentos planejados podem ser marcados como realizados")
+    t.status, t.paid_at = "REALIZED", body.paid_at
+    h = _dedupe_hash(_as_input(t))
+    _check_duplicate(db, ctx, h, exclude=t.id)
+    t.dedupe_hash = h
+    audit(db, action="finance.tx_realize", object_type="transaction", object_id=t.id,
+          organization_id=ctx.organization_id, actor_user_id=ctx.user.id)  # fmt: skip
+    db.commit()
+    return _tx_out(t)
+
+
+def _as_input(t: Transaction) -> TransactionIn:
+    """Reconstrói o `TransactionIn` de uma linha existente (para recalcular o hash)."""
+    return TransactionIn(
+        type=t.type, status=t.status, competence_month=month_str(t.competence_month),
+        due_date=t.due_date, paid_at=t.paid_at, amount_cents=t.amount_cents,
+        is_reversal=t.is_reversal, category=t.category, description=t.description,
+        is_fixed=t.is_fixed, work_source_id=t.work_source_id,
+        clinic_service_id=t.clinic_service_id, units=t.units,
+    )  # fmt: skip
+
+
+EXPORT_COLUMNS = ["competencia", "pago_em", "tipo", "situacao", "categoria", "descricao",
+                  "valor", "estorno", "unidades"]  # fmt: skip
+
+
+@router.get("/export/transactions.csv")
+def export_transactions(
+    month: str | None = Query(default=None, pattern=MONTH_RE),
+    ctx: TenantContext = Depends(get_tenant),
+    db: Session = Depends(get_db),
+):
+    """CSV no mesmo formato da importação (reimportar o arquivo não duplica nada). Textos livres
+    são neutralizados contra injeção de fórmula."""
+    ctx.require(P_FIN_READ)
+    q = _tx_q(ctx).order_by(Transaction.competence_month, Transaction.created_at, Transaction.id)
+    if month:
+        q = q.where(Transaction.competence_month == parse_month(month))
+    rows = [
+        {
+            "competencia": month_str(t.competence_month),
+            "pago_em": t.paid_at.isoformat() if t.paid_at else "",
+            "tipo": "receita" if t.type == "INCOME" else "despesa",
+            "situacao": "realizado" if t.status == "REALIZED" else "planejado",
+            "categoria": t.category,
+            "descricao": t.description,
+            "valor": format_amount(t.amount_cents),
+            "estorno": "sim" if t.is_reversal else "nao",
+            "unidades": "" if t.units is None else t.units,
+        }
+        for t in db.scalars(q.limit(50_000))
+    ]
+    body = to_csv(rows, EXPORT_COLUMNS, {"categoria", "descricao", "tipo", "situacao"})
+    audit(
+        db,
+        action="finance.export",
+        object_type="transaction",
+        organization_id=ctx.organization_id,
+        actor_user_id=ctx.user.id,
+        metadata={"rows": len(rows)},
+    )
+    db.commit()
+    name = f"lancamentos-{month or 'todos'}.csv"
+    return Response(
+        content=body,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{name}"'},
+    )
 
 
 @router.delete("/transactions/{tx_id}", status_code=status.HTTP_204_NO_CONTENT)

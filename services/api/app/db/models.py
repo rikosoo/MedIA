@@ -197,6 +197,7 @@ class Transaction(Base, IdMixin, TimestampMixin):
     __table_args__ = (
         Index("ix_tx_org_competence", "organization_id", "competence_month"),
         Index("ix_tx_org_dedupe", "organization_id", "dedupe_hash"),
+        Index("ix_tx_org_rowhash", "organization_id", "import_row_hash"),
     )
     organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), index=True)
     created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
@@ -217,6 +218,17 @@ class Transaction(Base, IdMixin, TimestampMixin):
         ForeignKey("recurrences.id"), nullable=True
     )
     dedupe_hash: Mapped[str] = mapped_column(String(64))
+    # Receita realizada de uma fonte: quantas unidades (plantões/pacientes) ela representa.
+    units: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    clinic_service_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("clinic_services.id"), nullable=True
+    )
+    import_job_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("import_jobs.id"), nullable=True
+    )
+    # Impressão digital da linha de CSV que originou/conciliou este lançamento: extratos com
+    # períodos sobrepostos não reimportam a mesma linha, nem depois de conciliada.
+    import_row_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
@@ -375,3 +387,24 @@ class SavedPlan(Base, IdMixin, TimestampMixin):
     undone_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     snapshot_json: Mapped[dict] = mapped_column(JSON)
     applied_json: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
+class ImportJob(Base, IdMixin, TimestampMixin):
+    """Importação de CSV concluída. O hash do conteúdo garante que o mesmo arquivo não entre 2x."""
+
+    __tablename__ = "import_jobs"
+    __table_args__ = (Index("ix_import_org_hash", "organization_id", "file_hash"),)
+    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), index=True)
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    filename: Mapped[str] = mapped_column(String(255))
+    type: Mapped[str] = mapped_column(String(20), default="TRANSACTIONS")
+    status: Mapped[str] = mapped_column(String(10), default="COMPLETED")  # COMPLETED | UNDONE
+    file_hash: Mapped[str] = mapped_column(String(64))
+    row_count: Mapped[int] = mapped_column(Integer)
+    imported_count: Mapped[int] = mapped_column(Integer, default=0)
+    reconciled_count: Mapped[int] = mapped_column(Integer, default=0)
+    duplicate_count: Mapped[int] = mapped_column(Integer, default=0)
+    error_count: Mapped[int] = mapped_column(Integer, default=0)
+    errors_json: Mapped[list] = mapped_column(JSON, default=list)
+    result_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    undone_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

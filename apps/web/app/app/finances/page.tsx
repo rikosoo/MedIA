@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { ImportPanel } from "@/components/ImportPanel";
 import { api, ApiError } from "@/lib/api";
 import { formatBRL, parseBRLToCents } from "@/lib/money";
 import { useSession } from "../session";
@@ -80,6 +81,16 @@ export default function FinancesPage() {
     if (await save(body)) form.reset();
   }
 
+  const [realizing, setRealizing] = useState<{ id: string; date: string } | null>(null);
+  async function realize() {
+    if (!realizing) return;
+    try {
+      await api(`/api/v1/transactions/${realizing.id}/realize`, { method: "POST", csrf: me.csrf_token, orgId: org.id, body: { paid_at: realizing.date } });
+      setRealizing(null);
+      await load();
+    } catch (e) { setError(e instanceof ApiError ? e.message : "Falha ao marcar como realizado"); }
+  }
+
   async function remove(id: string) {
     if (!confirm("Excluir este lançamento?")) return;
     try {
@@ -153,6 +164,8 @@ export default function FinancesPage() {
         <p><button type="submit" disabled={busy}>{busy ? "Salvando…" : "Salvar lançamento"}</button></p>
       </form>
 
+      <ImportPanel month={month} onChanged={load} />
+
       <h2>Lançamentos de {month}</h2>
       {txs === null ? <p aria-busy="true">Carregando…</p> : txs.length === 0 ? (
         <p className="muted">Nenhum lançamento neste mês.</p>
@@ -167,7 +180,16 @@ export default function FinancesPage() {
                   <td>{t.type === "EXPENSE" ? "Despesa" : "Receita"}{t.is_reversal ? " (estorno)" : ""}</td>
                   <td>{t.status === "REALIZED" ? "Realizado" : "Planejado"}</td>
                   <td>{formatBRL(t.signed_cents)}</td>
-                  <td><button className="secondary" onClick={() => remove(t.id)} aria-label={`Excluir ${t.description}`}>Excluir</button></td>
+                  <td>
+                    {t.status === "PLANNED" && (realizing?.id === t.id ? (
+                      <span>
+                        <input type="date" aria-label={`Data do pagamento de ${t.description}`} value={realizing.date} onChange={(e) => setRealizing({ id: t.id, date: e.target.value })} style={{ width: "auto" }} />{" "}
+                        <button type="button" onClick={realize} disabled={!realizing.date}>Confirmar</button>{" "}
+                        <button type="button" className="secondary" onClick={() => setRealizing(null)}>Cancelar</button>
+                      </span>
+                    ) : <button className="secondary" onClick={() => setRealizing({ id: t.id, date: "" })} aria-label={`Marcar ${t.description} como realizado`}>Marcar como realizado</button>)}{" "}
+                    <button className="secondary" onClick={() => remove(t.id)} aria-label={`Excluir ${t.description}`}>Excluir</button>
+                  </td>
                 </tr>
               ))}
             </tbody>

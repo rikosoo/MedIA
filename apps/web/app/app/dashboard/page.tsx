@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { MonthBars, type SeriesPoint } from "@/components/MonthBars";
+import { RealizedPanel } from "@/components/RealizedPanel";
 import { api, ApiError } from "@/lib/api";
 import { formatBRL } from "@/lib/money";
 import { formatMinutes } from "@/lib/time";
@@ -113,6 +114,8 @@ export default function Dashboard() {
             )}
             <p className="muted">* Estimativa informada por você; não é consultoria tributária.</p>
           </div>
+
+          <RealizedPanel month={month} onChanged={load} />
 
           <div className="grid2" style={{ marginTop: 16 }}>
             <div className="card">

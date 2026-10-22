@@ -6,8 +6,10 @@ from app.modules.auth.router import router as auth_router
 from app.modules.clinic.router import router as clinic_router
 from app.modules.finances.router import router as finances_router
 from app.modules.goals.router import router as goals_router
+from app.modules.imports.router import router as imports_router
 from app.modules.optimizer.router import router as optimizer_router
 from app.modules.organizations.router import router as org_router
+from app.modules.realized.router import router as realized_router
 from app.modules.schedule.router import router as schedule_router
 from app.modules.team.router import router as team_router
 from app.modules.work.router import router as work_router
@@ -38,6 +40,8 @@ def create_app() -> FastAPI:
         schedule_router,
         goals_router,
         optimizer_router,
+        imports_router,
+        realized_router,
     ):
         app.include_router(r)
     return app
