@@ -10,6 +10,7 @@ from app.core.deps import TenantContext, get_tenant
 from app.core.rbac import P_TEAM_MANAGE, P_TEAM_READ
 from app.db.models import Membership, Role, User
 from app.db.session import get_db
+from app.modules.billing.entitlements import check_team
 
 router = APIRouter(prefix="/api/v1/team/members", tags=["team"])
 
@@ -73,6 +74,7 @@ def add_member(
 ) -> MemberOut:
     """Vincula usuário já cadastrado. Convite por e-mail fica para sprint posterior."""
     ctx.require(P_TEAM_MANAGE)
+    check_team(db, ctx, body.role)
     user = db.scalar(select(User).where(User.email == body.email.lower()))
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Usuário não encontrado")

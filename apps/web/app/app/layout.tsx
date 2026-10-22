@@ -6,23 +6,30 @@ import { useEffect, useState } from "react";
 import { api, ApiError, type Me } from "@/lib/api";
 import { SessionContext } from "./session";
 
-// Rotas do PRD §4. Só as marcadas `ready` existem nesta entrega (Sprints 0–1).
+// Rotas do PRD §4. Só as marcadas `ready` existem nesta entrega (Sprints 0–10).
 const NAV = [
   { href: "/app/dashboard", label: "Início", ready: true },
-  { href: "/app/goals", label: "Minha Meta" },
-  { href: "/app/optimizer", label: "Otimizador Misto" },
+  { href: "/app/goals", label: "Minha Meta", ready: true },
+  { href: "/app/optimizer", label: "Otimizador Misto", ready: true },
   { href: "/app/work", label: "Trabalhos & Rendas", ready: true },
-  { href: "/app/clinic", label: "Consultório" },
-  { href: "/app/schedule", label: "Agenda & Capacidade" },
-  { href: "/app/finances", label: "Receitas & Despesas" },
+  { href: "/app/clinic", label: "Consultório", ready: true },
+  { href: "/app/schedule", label: "Agenda & Capacidade", ready: true },
+  { href: "/app/finances", label: "Receitas & Despesas", ready: true },
   { href: "/app/taxes", label: "Tributos PF/PJ" },
-  { href: "/app/acquisition", label: "Captação" },
-  { href: "/app/forecasts", label: "Previsões" },
-  { href: "/app/assistant", label: "Consultor IA" },
-  { href: "/app/reports", label: "Relatórios" },
+  { href: "/app/acquisition", label: "Captação", ready: true },
+  { href: "/app/forecasts", label: "Previsões", ready: true },
+  { href: "/app/assistant", label: "Consultor IA", ready: true },
+  { href: "/app/reports", label: "Relatórios", ready: true },
   { href: "/app/team", label: "Equipe" },
-  { href: "/app/billing", label: "Planos & Cobrança" },
-  { href: "/app/settings", label: "Configurações" },
+  { href: "/app/billing", label: "Planos & Cobrança", ready: true },
+  { href: "/app/settings", label: "Configurações", ready: true },
+];
+
+const BOTTOM = [
+  { href: "/app/dashboard", label: "Início" },
+  { href: "/app/goals", label: "Meta" },
+  { href: "/app/work", label: "Trabalhos" },
+  { href: "/app/schedule", label: "Agenda" },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -30,6 +37,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [me, setMe] = useState<Me | null>(null);
   const [state, setState] = useState<"loading" | "error">("loading");
+  const [unread, setUnread] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     api<Me>("/api/v1/me")
@@ -39,6 +48,35 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         else setState("error");
       });
   }, [router]);
+
+  // Sino: gera avisos uma vez por sessão do navegador (só para quem ligou) e mostra os não lidos.
+  useEffect(() => {
+    if (!me) return;
+    const orgId = me.organizations[0].id;
+    (async () => {
+      try {
+        if (!sessionStorage.getItem("fm_notif_checked")) {
+          sessionStorage.setItem("fm_notif_checked", "1");
+          await api("/api/v1/notifications/generate", { method: "POST", csrf: me.csrf_token, orgId, body: {} });
+        }
+        const r = await api<{ unread_count: number }>("/api/v1/notifications?limit=1", { orgId });
+        setUnread(r.unread_count);
+      } catch {
+        /* notificações são opcionais: falhas não atrapalham o app */
+      }
+    })();
+  }, [me, pathname]);
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMenuOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
 
   if (state === "error") return <main role="alert">Não foi possível carregar sua sessão. Tente novamente.</main>;
   if (!me) return <main aria-busy="true">Carregando…</main>;
@@ -52,6 +90,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <SessionContext.Provider value={{ me, org }}>
+      <a className="skip" href="#conteudo">Ir para o conteúdo</a>
       <div className="shell">
         <nav className="sidebar" aria-label="Principal">
           {NAV.map((n) =>
@@ -70,15 +109,51 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <header className="top">
             <strong>{org.name}</strong>
             <span>
+              <Link href="/app/notifications" aria-label={unread > 0 ? `Avisos: ${unread} não lidos` : "Avisos"}>
+                Avisos{unread > 0 ? ` (${unread})` : ""}
+              </Link>{" · "}
               {me.name} · <span className="muted">{org.role}</span>{" "}
               <button className="secondary" onClick={logout}>
                 Sair
               </button>
             </span>
           </header>
-          <main>{children}</main>
+          <main id="conteudo" tabIndex={-1}>
+            {children}
+          </main>
+          <footer className="legal">
+            <small>
+              Projeções e tributos são estimativas, não consultoria contábil ou tributária. O Consultor IA explica números calculados pelo app.{" "}
+              <Link href="/termos">Termos</Link> · <Link href="/privacidade">Privacidade</Link>
+            </small>
+          </footer>
         </div>
       </div>
+      {menuOpen && (
+        <div className="menusheet" id="menu-sheet" role="dialog" aria-label="Menu">
+          {NAV.map((n) =>
+            n.ready ? (
+              <Link key={n.href} href={n.href} aria-current={pathname === n.href ? "page" : undefined}>
+                {n.label}
+              </Link>
+            ) : (
+              <a key={n.href} className="soon" aria-disabled="true">
+                {n.label} <small>(em breve)</small>
+              </a>
+            ),
+          )}
+        </div>
+      )}
+      <nav className="bottomnav" aria-label="Atalhos">
+        {BOTTOM.map((n) => (
+          <Link key={n.href} href={n.href} aria-current={pathname === n.href ? "page" : undefined}>
+            {n.label}
+          </Link>
+        ))}
+        <button type="button" aria-expanded={menuOpen} aria-controls="menu-sheet" onClick={() => setMenuOpen((v) => !v)}>
+          Menu
+        </button>
+      </nav>
     </SessionContext.Provider>
   );
 }

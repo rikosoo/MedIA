@@ -1,7 +1,7 @@
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export type Org = { id: string; name: string; role: string };
-export type Me = { id: string; email: string; name: string; csrf_token: string; organizations: Org[] };
+export type Me = { id: string; email: string; name: string; csrf_token: string; mfa_enabled?: boolean; organizations: Org[] };
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -11,9 +11,9 @@ export class ApiError extends Error {
 
 export async function api<T>(
   path: string,
-  opts: { method?: string; body?: unknown; csrf?: string; orgId?: string } = {},
+  opts: { method?: string; body?: unknown; csrf?: string; orgId?: string; headers?: Record<string, string> } = {},
 ): Promise<T> {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { ...opts.headers };
   if (opts.body !== undefined) headers["Content-Type"] = "application/json";
   if (opts.csrf) headers["X-CSRF-Token"] = opts.csrf;
   if (opts.orgId) headers["X-Organization-Id"] = opts.orgId;
@@ -27,7 +27,9 @@ export async function api<T>(
     let detail = res.statusText;
     try {
       const j = await res.json();
-      detail = typeof j.detail === "string" ? j.detail : "Dados inválidos";
+      const d = j.detail;
+      // FastAPI: string simples, objeto com `message` (ex.: conflito de agenda) ou lista de erros 422.
+      detail = typeof d === "string" ? d : typeof d?.message === "string" ? d.message : "Dados inválidos";
     } catch {}
     throw new ApiError(res.status, detail);
   }

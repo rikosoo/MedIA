@@ -10,4 +10,9 @@ ignore = ["B008"]  # Depends() em defaults é o idioma do FastAPI
 known-first-party = ["app", "finance_engine", "tests"]
 
 [lint.per-file-ignores]
-"tests/*" = ["E501"]
+"**/tests/*" = ["E501"]
+# Blocos compactos com `# fmt: skip` (dicionários/chamadas densas) passam de 100 colunas.
+"**/app/modules/**/*.py" = ["E501"]
+"**/optimizer_engine/*.py" = ["E501"]
+"**/app/core/*.py" = ["E501"]
+"**/app/maintenance.py" = ["E501"]

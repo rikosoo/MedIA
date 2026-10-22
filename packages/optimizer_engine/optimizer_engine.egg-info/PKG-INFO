@@ -1,0 +1,6 @@
+Metadata-Version: 2.4
+Name: optimizer-engine
+Version: 0.1.0
+Summary: Otimizador misto do FinanceMed AI (OR-Tools CP-SAT; centavos e minutos inteiros)
+Requires-Python: >=3.11
+Requires-Dist: ortools>=9.10

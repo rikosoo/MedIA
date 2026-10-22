@@ -1,8 +1,9 @@
 FROM python:3.13-slim
 WORKDIR /app
 COPY packages/finance_engine /app/packages/finance_engine
+COPY packages/optimizer_engine /app/packages/optimizer_engine
 COPY services/api /app/services/api
-RUN pip install --no-cache-dir /app/packages/finance_engine /app/services/api
+RUN pip install --no-cache-dir /app/packages/finance_engine /app/packages/optimizer_engine /app/services/api
 WORKDIR /app/services/api
 RUN useradd -r app && chown -R app /app
 USER app

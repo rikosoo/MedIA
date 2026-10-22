@@ -14,3 +14,16 @@ export function parseBRLToCents(input: string): number | null {
   const [r, c = ""] = t.split(".");
   return Number(r) * 100 + Number(c.padEnd(2, "0"));
 }
+
+/** "76" ou "7,5" (%) -> pontos-base inteiros; null se inválido ou acima de `maxBps` (padrão 100%). */
+export function percentToBps(input: string, maxBps = 10_000): number | null {
+  const t = input.trim().replace(",", ".");
+  if (!/^\d+(\.\d{1,2})?$/.test(t)) return null;
+  const [i, f = ""] = t.split(".");
+  const bps = Number(i) * 100 + Number(f.padEnd(2, "0"));
+  return bps <= maxBps ? bps : null;
+}
+
+export function bpsToPercent(bps: number): string {
+  return `${(bps / 100).toFixed(2).replace(".", ",")}%`;
+}

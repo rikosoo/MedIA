@@ -24,7 +24,7 @@ def test_register_login_logout(app, make_user):
 def test_duplicate_email_and_weak_password(app, make_user):
     make_user("a@x.com")
     c = TestClient(app)
-    base = {"email": "a@x.com", "name": "A", "organization_name": "O"}
+    base = {"email": "a@x.com", "name": "A", "organization_name": "O", "accept_terms": True}
     assert (
         c.post(
             "/api/v1/auth/register", json={**base, "password": "senha-bem-longa-123"}
@@ -55,3 +55,24 @@ def test_csrf_required_on_mutations(app, make_user):
 
 def test_unauthenticated_blocked(app):
     assert TestClient(app).get("/api/v1/work-sources").status_code == 401
+
+
+def test_cors_preflight_allows_every_method_the_api_uses(app):
+    """O navegador só envia PUT/PATCH/DELETE se o preflight liberar (bug real encontrado no e2e)."""
+    c = TestClient(app)
+    for method in ("GET", "POST", "PUT", "PATCH", "DELETE"):
+        r = c.options(
+            "/api/v1/time-constraints",
+            headers={
+                "Origin": "http://localhost:3000",
+                "Access-Control-Request-Method": method,
+                "Access-Control-Request-Headers": "content-type,x-csrf-token,x-organization-id",
+            },
+        )
+        assert r.status_code == 200, method
+        assert r.headers["access-control-allow-credentials"] == "true"
+    bad = c.options(
+        "/api/v1/me",
+        headers={"Origin": "https://evil.example", "Access-Control-Request-Method": "GET"},
+    )
+    assert bad.status_code == 400
