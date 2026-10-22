@@ -24,7 +24,7 @@ def test_register_login_logout(app, make_user):
 def test_duplicate_email_and_weak_password(app, make_user):
     make_user("a@x.com")
     c = TestClient(app)
-    base = {"email": "a@x.com", "name": "A", "organization_name": "O"}
+    base = {"email": "a@x.com", "name": "A", "organization_name": "O", "accept_terms": True}
     assert (
         c.post(
             "/api/v1/auth/register", json={**base, "password": "senha-bem-longa-123"}

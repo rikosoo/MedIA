@@ -22,7 +22,7 @@ const NAV = [
   { href: "/app/reports", label: "Relatórios", ready: true },
   { href: "/app/team", label: "Equipe" },
   { href: "/app/billing", label: "Planos & Cobrança", ready: true },
-  { href: "/app/settings", label: "Configurações" },
+  { href: "/app/settings", label: "Configurações", ready: true },
 ];
 
 const BOTTOM = [
@@ -121,6 +121,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <main id="conteudo" tabIndex={-1}>
             {children}
           </main>
+          <footer className="legal">
+            <small>
+              Projeções e tributos são estimativas, não consultoria contábil ou tributária. O Consultor IA explica números calculados pelo app.{" "}
+              <Link href="/termos">Termos</Link> · <Link href="/privacidade">Privacidade</Link>
+            </small>
+          </footer>
         </div>
       </div>
       {menuOpen && (

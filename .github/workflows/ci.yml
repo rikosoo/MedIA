@@ -33,6 +33,12 @@ jobs:
       - name: Migrations (up/down/up)
         working-directory: services/api
         run: alembic upgrade head && alembic downgrade base && alembic upgrade head
+      - name: Backup e restauração (prova de que o backup restaura)
+        run: |
+          f=$(scripts/backup.sh /tmp/backups)
+          scripts/restore_check.sh "$f"
+      - name: Vulnerabilidades das dependências Python
+        run: pip install pip-audit && pip-audit --local
 
   web:
     runs-on: ubuntu-latest
@@ -46,3 +52,5 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - name: Vulnerabilidades críticas das dependências (produção)
+        run: npm audit --omit=dev --audit-level=critical

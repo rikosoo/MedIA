@@ -64,3 +64,6 @@ summary { padding: 10px 0; min-height: 44px; cursor: pointer; }
 .kpi .value { font-size: clamp(1.15rem, 5vw, 1.5rem); font-weight: 700; overflow-wrap: anywhere; }
 .kpi .label { color: var(--muted); font-size: .9rem; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+footer.legal { padding: 16px 24px; color: var(--muted); max-width: 1200px; margin: 0 auto; }
+footer.legal a { display: inline-block; padding: 10px 4px; margin: -10px -4px; }
+progress { width: 100%; accent-color: var(--accent, currentColor); }

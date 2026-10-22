@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api, ApiError } from "@/lib/api";
@@ -9,6 +10,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [needOtp, setNeedOtp] = useState(false);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -19,7 +21,7 @@ export default function LoginPage() {
       if (mode === "login") {
         await api("/api/v1/auth/login", {
           method: "POST",
-          body: { email: f.get("email"), password: f.get("password") },
+          body: { email: f.get("email"), password: f.get("password"), otp: f.get("otp") || null },
         });
       } else {
         await api("/api/v1/auth/register", {
@@ -29,12 +31,16 @@ export default function LoginPage() {
             password: f.get("password"),
             name: f.get("name"),
             organization_name: f.get("organization_name"),
+            accept_terms: f.get("accept_terms") === "on",
           },
         });
       }
       router.push("/app/dashboard");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Não foi possível conectar ao servidor.");
+      if (err instanceof ApiError && err.message === "MFA_REQUIRED") {
+        setNeedOtp(true);
+        setError("Informe o código do app autenticador (ou um código de recuperação).");
+      } else setError(err instanceof ApiError ? err.message : "Não foi possível conectar ao servidor.");
     } finally {
       setLoading(false);
     }
@@ -65,6 +71,18 @@ export default function LoginPage() {
           minLength={mode === "register" ? 10 : undefined}
           autoComplete={mode === "login" ? "current-password" : "new-password"}
         />
+        {mode === "login" && needOtp && (
+          <>
+            <label htmlFor="otp">Código de verificação</label>
+            <input id="otp" name="otp" inputMode="numeric" autoComplete="one-time-code" required />
+          </>
+        )}
+        {mode === "register" && (
+          <label htmlFor="terms">
+            <input id="terms" name="accept_terms" type="checkbox" required /> Li e aceito os{" "}
+            <Link href="/termos">Termos de Uso</Link> e a <Link href="/privacidade">Política de Privacidade</Link>
+          </label>
+        )}
         {error && (
           <p className="error" role="alert">
             {error}
@@ -86,6 +104,7 @@ export default function LoginPage() {
           </button>
         </p>
       </form>
+      <p className="muted"><small>As projeções são estimativas e não substituem contador ou assessoria tributária.</small></p>
     </div>
   );
 }

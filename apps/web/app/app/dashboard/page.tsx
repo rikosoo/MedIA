@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { Onboarding } from "@/components/Onboarding";
 import { MonthBars, type SeriesPoint } from "@/components/MonthBars";
 import { RealizedPanel } from "@/components/RealizedPanel";
 import { api, ApiError } from "@/lib/api";
@@ -62,6 +63,7 @@ export default function Dashboard() {
       <h1>Olá, {me.name}</h1>
       <label htmlFor="month">Competência</label>
       <input id="month" type="month" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} style={{ maxWidth: 220 }} />
+      <Onboarding orgId={org.id} />
       {error && <p className="error" role="alert">{error}</p>}
       {!d && !error && <p aria-busy="true">Carregando…</p>}
 

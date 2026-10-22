@@ -1,7 +1,13 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.core.middleware import install as install_guard
+from app.db.session import get_db
+from app.modules.account.router import router as account_router
 from app.modules.acquisition.router import router as acquisition_router
 from app.modules.alerts.router import router as alerts_router
 from app.modules.assistant.router import router as assistant_router
@@ -34,12 +40,24 @@ def create_app() -> FastAPI:
         allow_headers=["Content-Type", "X-CSRF-Token", "X-Organization-Id", "Idempotency-Key"],
     )
 
+    install_guard(app)
+
     @app.get("/health", tags=["health"])
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
+    @app.get("/ready", tags=["health"])
+    def ready(db: Session = Depends(get_db)):
+        """Pronto para tráfego: confere o banco (usado pelo monitoramento/balanceador)."""
+        try:
+            db.execute(text("SELECT 1"))
+        except Exception:
+            return JSONResponse({"status": "unavailable"}, status_code=503)
+        return {"status": "ready"}
+
     for r in (
         auth_router,
+        account_router,
         org_router,
         team_router,
         work_router,

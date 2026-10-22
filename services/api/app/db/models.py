@@ -72,6 +72,15 @@ class User(Base, IdMixin, TimestampMixin):
     password_hash: Mapped[str] = mapped_column(String(255))
     auth_provider: Mapped[str] = mapped_column(String(30), default="password")
     mfa_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    mfa_secret_enc: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    mfa_recovery_hashes: Mapped[list] = mapped_column(JSON, default=list)
+    terms_accepted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    terms_version: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    failed_logins: Mapped[int] = mapped_column(Integer, default=0)
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class Membership(Base, IdMixin, TimestampMixin):

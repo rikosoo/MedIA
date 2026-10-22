@@ -565,3 +565,16 @@ def test_cors_preflight_allows_the_idempotency_key(app):
         r.status_code == 200
         and "idempotency-key" in r.headers["access-control-allow-headers"].lower()
     )
+
+
+def test_concurrent_first_access_does_not_duplicate_subscription(make_user, app):
+    """Duas requisições simultâneas na primeira abertura: a segunda reaproveita a assinatura criada."""
+    import uuid
+
+    from app.modules.billing.entitlements import _create_sub
+
+    api = make_user("a@x.com")
+    sub(api)  # a primeira requisição já criou
+    with app.state.session_factory() as s:
+        again = _create_sub(s, uuid.UUID(api.org_id), datetime.now(UTC))
+        assert again is not None and s.scalar(select(func.count()).select_from(Subscription)) == 1

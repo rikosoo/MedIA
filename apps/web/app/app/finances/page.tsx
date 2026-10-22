@@ -187,7 +187,7 @@ export default function FinancesPage() {
                         <button type="button" onClick={realize} disabled={!realizing.date}>Confirmar</button>{" "}
                         <button type="button" className="secondary" onClick={() => setRealizing(null)}>Cancelar</button>
                       </span>
-                    ) : <button className="secondary" onClick={() => setRealizing({ id: t.id, date: "" })} aria-label={`Marcar ${t.description} como realizado`}>Marcar como realizado</button>)}{" "}
+                    ) : <button className="secondary" onClick={() => setRealizing({ id: t.id, date: "" })} aria-label={`Marcar como realizado: ${t.description}`}>Marcar como realizado</button>)}{" "}
                     <button className="secondary" onClick={() => remove(t.id)} aria-label={`Excluir ${t.description}`}>Excluir</button>
                   </td>
                 </tr>

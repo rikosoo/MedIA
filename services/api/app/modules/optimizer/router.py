@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.audit import audit
-from app.core.deps import TenantContext, get_tenant
+from app.core.deps import AuthContext, TenantContext, get_auth, get_tenant
 from app.core.rbac import P_GOAL_READ, P_GOAL_WRITE, P_SCHED_WRITE
 from app.db.base import utcnow
 from app.db.models import (
@@ -461,5 +461,5 @@ def list_saved(ctx: TenantContext = Depends(get_tenant), db: Session = Depends(g
 
 
 @router.get("/labels")
-def labels():
+def labels(_auth: AuthContext = Depends(get_auth)):
     return LABELS

@@ -12,9 +12,20 @@ class Settings(BaseSettings):
     cookie_secure: bool = False  # True em staging/prod (HTTPS)
     cors_origins: str = "http://localhost:3000"
     environment: str = "dev"
+    # Chave que cifra segredos em repouso (ex.: TOTP). Em staging/prod é obrigatória e diferente do padrão.
+    secret_key: str = "dev-only-insecure-secret-key-change-me"
+    login_max_failures: int = 5
+    login_lock_minutes: int = 15
+    rate_limit_per_minute: int = 60  # chamadas de autenticação por IP
     billing_webhook_secret: str = ""  # vazio = webhook desligado (503)
+
+
+DEV_SECRET = Settings.model_fields["secret_key"].default
 
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    s = Settings()
+    if s.environment != "dev" and (s.secret_key == DEV_SECRET or not s.cookie_secure):
+        raise RuntimeError("Fora de dev: defina SECRET_KEY próprio e COOKIE_SECURE=true")
+    return s

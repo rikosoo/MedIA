@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.audit import audit
-from app.core.deps import TenantContext, get_tenant
+from app.core.deps import AuthContext, TenantContext, get_auth, get_tenant
 from app.db.base import utcnow
 from app.db.models import Notification
 from app.db.session import get_db
@@ -38,7 +38,7 @@ def alerts(
 
 
 @router.get("/notification-kinds")
-def kinds():
+def kinds(_auth: AuthContext = Depends(get_auth)):
     return [
         {"kind": k, "title": t, "route": r, "min_interval_days": d}
         for k, (t, r, d) in KINDS.items()

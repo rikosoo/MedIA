@@ -1,7 +1,7 @@
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export type Org = { id: string; name: string; role: string };
-export type Me = { id: string; email: string; name: string; csrf_token: string; organizations: Org[] };
+export type Me = { id: string; email: string; name: string; csrf_token: string; mfa_enabled?: boolean; organizations: Org[] };
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {

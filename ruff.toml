@@ -14,3 +14,5 @@ known-first-party = ["app", "finance_engine", "tests"]
 # Blocos compactos com `# fmt: skip` (dicionários/chamadas densas) passam de 100 colunas.
 "**/app/modules/**/*.py" = ["E501"]
 "**/optimizer_engine/*.py" = ["E501"]
+"**/app/core/*.py" = ["E501"]
+"**/app/maintenance.py" = ["E501"]

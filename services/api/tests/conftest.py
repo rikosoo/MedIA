@@ -48,6 +48,7 @@ class Api:
                 "password": "senha-bem-longa-123",
                 "name": email.split("@")[0],
                 "organization_name": f"Org de {email}",
+                "accept_terms": True,
             },
         )
         assert r.status_code == 201, r.text

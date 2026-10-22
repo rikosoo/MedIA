@@ -10,6 +10,7 @@ from datetime import UTC, date, datetime, timedelta
 
 from fastapi import HTTPException
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.deps import TenantContext
@@ -118,17 +119,25 @@ def sync(db: Session, sub: Subscription, now: datetime) -> bool:
     return changed
 
 
+def _create_sub(db: Session, org_id: uuid.UUID, now: datetime) -> Subscription:
+    """Cria a assinatura inicial; se outra requisição criou primeiro, usa a dela (sem erro 500)."""
+    org = db.get(Organization, org_id)
+    started = aware(org.created_at) if org and org.created_at else now
+    sub = Subscription(organization_id=org_id, trial_ends_at=started + timedelta(days=TRIAL_DAYS))
+    try:
+        with db.begin_nested():
+            db.add(sub)
+            db.flush()
+    except IntegrityError:
+        sub = db.scalar(select(Subscription).where(Subscription.organization_id == org_id))
+    return sub
+
+
 def get_sub(db: Session, org_id: uuid.UUID, now: datetime | None = None) -> Subscription:
     now = now or utcnow()
     sub = db.scalar(select(Subscription).where(Subscription.organization_id == org_id))
     if sub is None:
-        org = db.get(Organization, org_id)
-        started = aware(org.created_at) if org and org.created_at else now
-        sub = Subscription(
-            organization_id=org_id, trial_ends_at=started + timedelta(days=TRIAL_DAYS)
-        )
-        db.add(sub)
-        db.flush()
+        sub = _create_sub(db, org_id, now)
     if sync(db, sub, now):
         db.flush()
     return sub
