@@ -22,6 +22,7 @@ a { color: var(--link); }
 label { display: block; font-weight: 600; margin: 12px 0 4px; }
 input, select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; min-height: 44px; }
 button { min-height: 44px; padding: 0 18px; border-radius: 8px; border: 1px solid var(--primary); background: var(--primary); color: var(--on-primary); font: inherit; font-weight: 600; cursor: pointer; }
+a.btn { display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 8px; background: var(--primary); color: var(--on-primary); font-weight: 600; text-decoration: none; }
 button.secondary { background: transparent; color: var(--link); border-color: var(--border); }
 button:disabled { opacity: .6; cursor: wait; }
 .error { color: var(--err); font-weight: 600; margin-top: 8px; }

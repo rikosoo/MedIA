@@ -11,3 +11,7 @@ known-first-party = ["app", "finance_engine", "tests"]
 
 [lint.per-file-ignores]
 "**/tests/*" = ["E501"]
+# Blocos compactos com `# fmt: skip` (dicionários/chamadas densas) passam de 100 colunas.
+"**/modules/optimizer/*.py" = ["E501"]
+"**/modules/goals/projection.py" = ["E501"]
+"**/optimizer_engine/*.py" = ["E501"]

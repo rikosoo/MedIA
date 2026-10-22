@@ -79,6 +79,17 @@ def _streams(db: Session, ctx: TenantContext, month: date):
             )
         )  # fmt: skip
         meta[key] = {"name": w.name, "source_id": str(w.id), "inherited": plan.month is None}
+        if plan.extra_units:
+            ekey = key + ":extra"
+            inputs.append(
+                StreamInput(
+                    ekey, "WORK", plan.extra_units, "PROBABLE", r.gross_cents, r.variable_cost_cents,
+                    plan.tax_rate_bps if plan.tax_rate_bps is not None else r.tax_rate_bps,
+                    r.duration_minutes * 10, (r.commitment_minutes or r.duration_minutes) * 10,
+                )
+            )  # fmt: skip
+            meta[ekey] = {"name": f"{w.name} (adicional do otimizador)", "source_id": str(w.id),
+                          "inherited": False}  # fmt: skip
 
     services = db.scalars(
         select(ClinicService).where(
@@ -101,6 +112,17 @@ def _streams(db: Session, ctx: TenantContext, month: date):
             )
         )  # fmt: skip
         meta[key] = {"name": s.name, "source_id": str(s.id), "inherited": plan.month is None}
+        if plan.extra_units:
+            ekey = key + ":extra"
+            inputs.append(
+                StreamInput(
+                    ekey, "SERVICE", plan.extra_units, "PROBABLE", econ.gross_revenue_cents,
+                    econ.fee_cents + econ.variable_cost_cents, plan.tax_rate_bps or 0,
+                    econ.minutes_x10, econ.minutes_x10,
+                )
+            )  # fmt: skip
+            meta[ekey] = {"name": f"{s.name} (adicional do otimizador)", "source_id": str(s.id),
+                          "inherited": False}  # fmt: skip
     return inputs, meta
 
 

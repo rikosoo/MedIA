@@ -329,3 +329,49 @@ class IncomePlan(Base, IdMixin, TimestampMixin):
     units: Mapped[int] = mapped_column(Integer)
     certainty: Mapped[str] = mapped_column(String(12))  # GUARANTEED | PROBABLE
     tax_rate_bps: Mapped[int | None] = mapped_column(Integer, nullable=True)  # estimativa
+    # Unidades adicionais aplicadas por um cenário do otimizador: sempre "provável".
+    extra_units: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+
+
+class OptimizerRun(Base, IdMixin, TimestampMixin):
+    """Cada execução fica registrada com os parâmetros usados (auditoria e reprodutibilidade)."""
+
+    __tablename__ = "optimizer_runs"
+    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), index=True)
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    goal_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("monthly_goals.id"), nullable=True)
+    month: Mapped[date] = mapped_column(Date)
+    metric_type: Mapped[str] = mapped_column(String(20))
+    engine_version: Mapped[str] = mapped_column(String(20))
+    outcome: Mapped[str] = mapped_column(String(15))  # FEASIBLE | INFEASIBLE | ALREADY_MET
+    baseline_cents: Mapped[int] = mapped_column(BigInteger)
+    gap_cents: Mapped[int] = mapped_column(BigInteger)
+    runtime_ms: Mapped[int] = mapped_column(Integer)
+    params_json: Mapped[dict] = mapped_column(JSON)
+    result_json: Mapped[dict] = mapped_column(JSON)
+
+
+class OptimizerScenario(Base, IdMixin, TimestampMixin):
+    __tablename__ = "optimizer_scenarios"
+    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), index=True)
+    run_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("optimizer_runs.id"), index=True)
+    ranking: Mapped[int] = mapped_column(Integer)
+    objective: Mapped[str] = mapped_column(String(20))  # objetivo principal do cenário
+    output_json: Mapped[dict] = mapped_column(JSON)
+    feasibility_status: Mapped[str] = mapped_column(String(15), default="FEASIBLE")
+    warnings_json: Mapped[list] = mapped_column(JSON, default=list)
+
+
+class SavedPlan(Base, IdMixin, TimestampMixin):
+    """Cenário salvo (snapshot imutável) e, se aplicado, o que mudou no planejamento."""
+
+    __tablename__ = "saved_plans"
+    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    scenario_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("optimizer_scenarios.id"), index=True)
+    month: Mapped[date] = mapped_column(Date)
+    status: Mapped[str] = mapped_column(String(10), default="SAVED")  # SAVED|APPLIED|UNDONE
+    applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    undone_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    snapshot_json: Mapped[dict] = mapped_column(JSON)
+    applied_json: Mapped[dict] = mapped_column(JSON, default=dict)

@@ -20,9 +20,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.13" }
-      - run: pip install -e packages/finance_engine -e "services/api[dev]"
+      - run: pip install -e packages/finance_engine -e packages/optimizer_engine -e "services/api[dev]"
       - run: ruff check packages services && ruff format --check packages services
-      - run: pytest packages/finance_engine
+      - run: pytest packages/finance_engine packages/optimizer_engine
       - name: API tests (PostgreSQL real)
         working-directory: services/api
         env:

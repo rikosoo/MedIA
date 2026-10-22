@@ -128,7 +128,7 @@ export default function Dashboard() {
             <div className="card">
               <h2>Próximos passos</h2>
               <ul>{d.next_actions.map((a) => <li key={a.route}><Link href={a.route}>{a.label}</Link></li>)}</ul>
-              <button disabled aria-disabled="true" title="Chega na próxima sprint">Otimizar minha meta (em breve)</button>
+              <Link href="/app/optimizer" className="btn">Otimizar minha meta</Link>
             </div>
           </div>
 

@@ -927,23 +927,12 @@ def overview(
     }
 
 
-@router.get("/schedule/capacity")
-def capacity(
-    month: str = Query(pattern=MONTH_RE),
-    user_id: uuid.UUID | None = None,
-    slot_minutes: int | None = Query(default=None, ge=5, le=480),
-    service_id: uuid.UUID | None = None,
-    ctx: TenantContext = Depends(get_tenant),
-    db: Session = Depends(get_db),
-):
-    """Capacidade real do mês: disponibilidade menos fechamentos, compromissos e consultas já
-    marcadas. Slots são contados por janela (um horário não atravessa lacunas)."""
-    ctx.require(P_SCHED_READ)
-    uid, tz = _target_user(db, ctx, user_id), _tz(db, ctx)
-    m = _month(month)
-    win = local_month(m, tz)
-    tc = _constraint(db, ctx, uid, m)
-
+def capacity_intervals(
+    db: Session, ctx: TenantContext, uid: uuid.UUID, tz: ZoneInfo, m: date, tc, win: Interval
+) -> dict:
+    """Intervalos da agenda do mês: disponibilidade, o que sobra após fechamentos e compromissos
+    (`gross`), e o que sobra após as consultas já marcadas (`remaining`). Usado também pelo
+    otimizador."""
     avail = merge(
         clip(
             [
@@ -987,6 +976,33 @@ def capacity(
             blockers.append(Interval(ev.end, ev.end + timedelta(minutes=ev.recovery_minutes)))
     gross = subtract(after_closure, blockers)
     remaining = subtract(gross, booked)
+
+    return {
+        "avail": avail, "after_closure": after_closure, "closed": closed, "gross": gross,
+        "remaining": remaining, "booked": booked, "conditional": conditional, "blockers": blockers,
+    }  # fmt: skip
+
+
+@router.get("/schedule/capacity")
+def capacity(
+    month: str = Query(pattern=MONTH_RE),
+    user_id: uuid.UUID | None = None,
+    slot_minutes: int | None = Query(default=None, ge=5, le=480),
+    service_id: uuid.UUID | None = None,
+    ctx: TenantContext = Depends(get_tenant),
+    db: Session = Depends(get_db),
+):
+    """Capacidade real do mês: disponibilidade menos fechamentos, compromissos e consultas já
+    marcadas. Slots são contados por janela (um horário não atravessa lacunas)."""
+    ctx.require(P_SCHED_READ)
+    uid, tz = _target_user(db, ctx, user_id), _tz(db, ctx)
+    m = _month(month)
+    win = local_month(m, tz)
+    tc = _constraint(db, ctx, uid, m)
+
+    ci = capacity_intervals(db, ctx, uid, tz, m, tc, win)
+    avail, after_closure, closed = ci["avail"], ci["after_closure"], ci["closed"]
+    gross, remaining, conditional = ci["gross"], ci["remaining"], ci["conditional"]
 
     out = {
         "month": month,

@@ -230,6 +230,7 @@ def _plan_out(p: IncomePlan, name: str) -> dict:
         "units": p.units,
         "certainty": p.certainty,
         "tax_rate_bps": p.tax_rate_bps,
+        "extra_units": p.extra_units,
     }
 
 
