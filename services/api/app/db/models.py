@@ -217,3 +217,76 @@ class Transaction(Base, IdMixin, TimestampMixin):
     )
     dedupe_hash: Mapped[str] = mapped_column(String(64))
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class AvailabilitySlot(Base, IdMixin, TimestampMixin):
+    """Janela em que o médico pode atender (UTC)."""
+
+    __tablename__ = "availability_slots"
+    __table_args__ = (Index("ix_avail_org_user_start", "organization_id", "user_id", "starts_at"),)
+    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    availability_type: Mapped[str] = mapped_column(String(20), default="CLINIC")
+
+
+class ScheduleEvent(Base, IdMixin, TimestampMixin):
+    __tablename__ = "schedule_events"
+    __table_args__ = (Index("ix_event_org_user_start", "organization_id", "user_id", "starts_at"),)
+    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    type: Mapped[str] = mapped_column(String(20))
+    title: Mapped[str] = mapped_column(String(200), default="")
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(12), default="PLANNED")  # PLANNED|DONE|CANCELLED
+    allow_overlap: Mapped[bool] = mapped_column(Boolean, default=False)
+    recovery_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    work_source_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("work_sources.id"), nullable=True
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class Holiday(Base, IdMixin, TimestampMixin):
+    __tablename__ = "holidays"
+    __table_args__ = (UniqueConstraint("organization_id", "date", "name", name="uq_holiday"),)
+    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), index=True)
+    date: Mapped[date] = mapped_column(Date)
+    name: Mapped[str] = mapped_column(String(120))
+    scope: Mapped[str] = mapped_column(String(12))  # NATIONAL|STATE|MUNICIPAL|CUSTOM
+    # Sugestões automáticas nascem não confirmadas; só feriado confirmado fecha a agenda.
+    confirmed: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class Leave(Base, IdMixin, TimestampMixin):
+    """Férias/licença em dias inteiros. `PHYSICIAN` tira capacidade; `SECRETARY` afeta captação."""
+
+    __tablename__ = "leaves"
+    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), index=True)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    staff_role: Mapped[str] = mapped_column(String(12))  # PHYSICIAN | SECRETARY
+    start_date: Mapped[date] = mapped_column(Date)
+    end_date: Mapped[date] = mapped_column(Date)  # inclusivo
+    coverage_factor_bps: Mapped[int] = mapped_column(Integer, default=0)
+    note: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class TimeConstraint(Base, IdMixin, TimestampMixin):
+    """Limites de jornada. `month` nulo = padrão; mês específico sobrescreve o padrão."""
+
+    __tablename__ = "time_constraints"
+    __table_args__ = (UniqueConstraint("organization_id", "user_id", "month", name="uq_tc"),)
+    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    month: Mapped[date | None] = mapped_column(Date, nullable=True)
+    max_active_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    max_committed_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    min_rest_minutes: Mapped[int] = mapped_column(Integer, default=0)
+    max_night_shifts: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    days_off: Mapped[list] = mapped_column(JSON, default=list)  # ["2026-10-12", ...]

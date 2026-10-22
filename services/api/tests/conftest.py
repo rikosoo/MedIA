@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -11,9 +13,15 @@ from app.main import create_app
 
 @pytest.fixture
 def app():
-    engine = create_engine(
-        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
-    )
+    # TEST_DATABASE_URL roda a suíte em PostgreSQL real (CI); sem ela, SQLite em memória.
+    pg_url = os.environ.get("TEST_DATABASE_URL")
+    if pg_url:
+        engine = create_engine(pg_url)
+        Base.metadata.drop_all(engine)
+    else:
+        engine = create_engine(
+            "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+        )
     Base.metadata.create_all(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
 

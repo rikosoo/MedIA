@@ -12,9 +12,25 @@ from .goals import goal_gap_cents
 from .money import format_brl, parse_brl_to_cents
 from .recurrence import occurrences_in_month
 from .returns import expected_minutes_per_new_patient, expected_revenue_per_new_patient_cents
+from .schedule import (
+    Conflict,
+    Event,
+    Interval,
+    RestViolation,
+    find_conflicts,
+    national_holidays,
+    rest_violations,
+)
 from .work import per_hour_cents
 
 __all__ = [
+    "Conflict",
+    "Event",
+    "Interval",
+    "RestViolation",
+    "find_conflicts",
+    "national_holidays",
+    "rest_violations",
     "ConsultEconomics",
     "capacity_new_patients",
     "consult_economics",

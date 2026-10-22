@@ -10,4 +10,4 @@ ignore = ["B008"]  # Depends() em defaults é o idioma do FastAPI
 known-first-party = ["app", "finance_engine", "tests"]
 
 [lint.per-file-ignores]
-"tests/*" = ["E501"]
+"**/tests/*" = ["E501"]

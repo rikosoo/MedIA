@@ -6,6 +6,7 @@ from app.modules.auth.router import router as auth_router
 from app.modules.clinic.router import router as clinic_router
 from app.modules.finances.router import router as finances_router
 from app.modules.organizations.router import router as org_router
+from app.modules.schedule.router import router as schedule_router
 from app.modules.team.router import router as team_router
 from app.modules.work.router import router as work_router
 
@@ -17,7 +18,7 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=[o.strip() for o in settings.cors_origins.split(",") if o.strip()],
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PATCH", "DELETE"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["Content-Type", "X-CSRF-Token", "X-Organization-Id"],
     )
 
@@ -25,7 +26,15 @@ def create_app() -> FastAPI:
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
-    for r in (auth_router, org_router, team_router, work_router, clinic_router, finances_router):
+    for r in (
+        auth_router,
+        org_router,
+        team_router,
+        work_router,
+        clinic_router,
+        finances_router,
+        schedule_router,
+    ):
         app.include_router(r)
     return app
 

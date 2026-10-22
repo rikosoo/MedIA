@@ -27,7 +27,9 @@ export async function api<T>(
     let detail = res.statusText;
     try {
       const j = await res.json();
-      detail = typeof j.detail === "string" ? j.detail : "Dados inválidos";
+      const d = j.detail;
+      // FastAPI: string simples, objeto com `message` (ex.: conflito de agenda) ou lista de erros 422.
+      detail = typeof d === "string" ? d : typeof d?.message === "string" ? d.message : "Dados inválidos";
     } catch {}
     throw new ApiError(res.status, detail);
   }

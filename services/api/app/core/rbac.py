@@ -12,20 +12,29 @@ P_CLINIC_READ = "clinic:read"
 P_CLINIC_WRITE = "clinic:write"
 P_FIN_READ = "finance:read"
 P_FIN_WRITE = "finance:write"
+P_SCHED_READ = "schedule:read"
+P_SCHED_WRITE = "schedule:write"
+P_SCHED_ALL = "schedule:all"  # ver/editar a agenda de outros membros
 
 _CLINIC_RW = {P_CLINIC_READ, P_CLINIC_WRITE, P_FIN_READ, P_FIN_WRITE}
+_SCHED_OWN = {P_SCHED_READ, P_SCHED_WRITE}
+_SCHED_ALL = _SCHED_OWN | {P_SCHED_ALL}
 
 ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
     Role.OWNER: frozenset(
         {P_ORG_UPDATE, P_TEAM_MANAGE, P_TEAM_READ, P_WORK_READ_OWN, P_WORK_READ_ALL, P_WORK_WRITE}
         | _CLINIC_RW
+        | _SCHED_ALL
     ),
-    Role.PHYSICIAN: frozenset({P_TEAM_READ, P_WORK_READ_OWN, P_WORK_WRITE} | _CLINIC_RW),
+    Role.PHYSICIAN: frozenset(
+        {P_TEAM_READ, P_WORK_READ_OWN, P_WORK_WRITE} | _CLINIC_RW | _SCHED_OWN
+    ),
     Role.MANAGER: frozenset(
-        {P_TEAM_READ, P_WORK_READ_OWN, P_WORK_READ_ALL, P_WORK_WRITE} | _CLINIC_RW
+        {P_TEAM_READ, P_WORK_READ_OWN, P_WORK_READ_ALL, P_WORK_WRITE} | _CLINIC_RW | _SCHED_ALL
     ),
     # Secretária: sem rendimentos pessoais por padrão (US-012).
-    Role.ASSISTANT: frozenset(),
+    # Agenda sim (opera a agenda do médico); finanças e rendas não.
+    Role.ASSISTANT: frozenset(_SCHED_ALL),
     # Contador: somente leitura de dados aprovados.
     Role.ACCOUNTANT: frozenset({P_WORK_READ_OWN, P_WORK_READ_ALL, P_CLINIC_READ, P_FIN_READ}),
     Role.PLATFORM_SUPPORT: frozenset(),

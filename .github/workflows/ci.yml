@@ -23,8 +23,13 @@ jobs:
       - run: pip install -e packages/finance_engine -e "services/api[dev]"
       - run: ruff check packages services && ruff format --check packages services
       - run: pytest packages/finance_engine
-      - run: pytest
+      - name: API tests (PostgreSQL real)
         working-directory: services/api
+        env:
+          TEST_DATABASE_URL: postgresql+psycopg://financemed:financemed@localhost:5432/financemed_test
+        run: |
+          PGPASSWORD=financemed psql -h localhost -U financemed financemed -c "CREATE DATABASE financemed_test"
+          pytest
       - name: Migrations (up/down/up)
         working-directory: services/api
         run: alembic upgrade head && alembic downgrade base && alembic upgrade head
