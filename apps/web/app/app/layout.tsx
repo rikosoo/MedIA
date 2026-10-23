@@ -16,7 +16,7 @@ const NAV = [
   { href: "/app/schedule", label: "Agenda & Capacidade", ready: true },
   { href: "/app/finances", label: "Receitas & Despesas", ready: true },
   { href: "/app/costs", label: "Custos & Equilíbrio", ready: true },
-  { href: "/app/taxes", label: "Tributos PF/PJ" },
+  { href: "/app/taxes", label: "Tributos PF/PJ", ready: true },
   { href: "/app/acquisition", label: "Captação", ready: true },
   { href: "/app/forecasts", label: "Previsões", ready: true },
   { href: "/app/assistant", label: "Consultor IA", ready: true },

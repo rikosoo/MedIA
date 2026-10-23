@@ -26,6 +26,7 @@ from app.modules.realized.router import router as realized_router
 from app.modules.reports.router import public as reports_public_router
 from app.modules.reports.router import router as reports_router
 from app.modules.schedule.router import router as schedule_router
+from app.modules.tax.router import router as tax_router
 from app.modules.team.router import router as team_router
 from app.modules.work.router import router as work_router
 
@@ -69,6 +70,7 @@ def create_app() -> FastAPI:
         work_router,
         clinic_router,
         costs_router,
+        tax_router,
         finances_router,
         schedule_router,
         goals_router,

@@ -13,6 +13,8 @@ from app.db.models import ClinicService, IncomePlan, MonthlyGoal, Transaction, W
 from app.modules.clinic.router import _economics, _policy_of
 from app.modules.finances.router import summary as finance_summary
 from app.modules.schedule.router import overview as schedule_overview
+from app.modules.tax.defaults import load as load_tax_defaults
+from app.modules.tax.defaults import resolve as resolve_tax
 from finance_engine import (
     StreamInput,
     compute_stream,
@@ -54,6 +56,7 @@ def effective_plans(
 def _streams(db: Session, ctx: TenantContext, month: date):
     """(entradas, metadados). Trabalhos: só os do usuário. Serviços: os da organização."""
     plans = effective_plans(db, ctx, month)
+    taxd = load_tax_defaults(db, ctx.organization_id)
     inputs: list[StreamInput] = []
     meta: dict[str, dict] = {}
 
@@ -71,25 +74,27 @@ def _streams(db: Session, ctx: TenantContext, month: date):
             continue
         r = w.income_rule
         key = f"WORK:{w.id}"
+        tax, tax_src = resolve_tax(
+            taxd, plan.tax_rate_bps if plan.tax_rate_bps is not None else r.tax_rate_bps, w.regime
+        )
         inputs.append(
             StreamInput(
                 key, "WORK", plan.units, plan.certainty, r.gross_cents, r.variable_cost_cents,
-                plan.tax_rate_bps if plan.tax_rate_bps is not None else r.tax_rate_bps,
-                r.duration_minutes * 10, (r.commitment_minutes or r.duration_minutes) * 10,
+                tax, r.duration_minutes * 10, (r.commitment_minutes or r.duration_minutes) * 10,
             )
         )  # fmt: skip
-        meta[key] = {"name": w.name, "source_id": str(w.id), "inherited": plan.month is None}
+        meta[key] = {"name": w.name, "source_id": str(w.id), "inherited": plan.month is None,
+                     "tax_rate_bps": tax, "tax_source": tax_src, "regime": w.regime}  # fmt: skip
         if plan.extra_units:
             ekey = key + ":extra"
             inputs.append(
                 StreamInput(
                     ekey, "WORK", plan.extra_units, "PROBABLE", r.gross_cents, r.variable_cost_cents,
-                    plan.tax_rate_bps if plan.tax_rate_bps is not None else r.tax_rate_bps,
-                    r.duration_minutes * 10, (r.commitment_minutes or r.duration_minutes) * 10,
+                    tax, r.duration_minutes * 10, (r.commitment_minutes or r.duration_minutes) * 10,
                 )
             )  # fmt: skip
             meta[ekey] = {"name": f"{w.name} (adicional do otimizador)", "source_id": str(w.id),
-                          "inherited": False}  # fmt: skip
+                          "inherited": False, "tax_rate_bps": tax, "tax_source": tax_src}  # fmt: skip
 
     services = db.scalars(
         select(ClinicService).where(
@@ -104,25 +109,28 @@ def _streams(db: Session, ctx: TenantContext, month: date):
             continue
         econ, _ = _economics(s, _policy_of(db, ctx, s), s.price_cents)
         key = f"SERVICE:{s.id}"
+        stax, stax_src = resolve_tax(taxd, plan.tax_rate_bps, taxd.clinic_regime)
         inputs.append(
             StreamInput(
                 key, "SERVICE", plan.units, plan.certainty, econ.gross_revenue_cents,
-                econ.fee_cents + econ.variable_cost_cents, plan.tax_rate_bps or 0,
+                econ.fee_cents + econ.variable_cost_cents, stax,
                 econ.minutes_x10, econ.minutes_x10,
             )
         )  # fmt: skip
-        meta[key] = {"name": s.name, "source_id": str(s.id), "inherited": plan.month is None}
+        meta[key] = {"name": s.name, "source_id": str(s.id), "inherited": plan.month is None,
+                     "tax_rate_bps": stax, "tax_source": stax_src,
+                     "regime": taxd.clinic_regime}  # fmt: skip
         if plan.extra_units:
             ekey = key + ":extra"
             inputs.append(
                 StreamInput(
                     ekey, "SERVICE", plan.extra_units, "PROBABLE", econ.gross_revenue_cents,
-                    econ.fee_cents + econ.variable_cost_cents, plan.tax_rate_bps or 0,
+                    econ.fee_cents + econ.variable_cost_cents, stax,
                     econ.minutes_x10, econ.minutes_x10,
                 )
             )  # fmt: skip
             meta[ekey] = {"name": f"{s.name} (adicional do otimizador)", "source_id": str(s.id),
-                          "inherited": False}  # fmt: skip
+                          "inherited": False, "tax_rate_bps": stax, "tax_source": stax_src}  # fmt: skip
     return inputs, meta
 
 

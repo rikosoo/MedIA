@@ -138,7 +138,7 @@ export default function GoalsPage() {
                   <label htmlFor={`c-${s.source_id}`}>Certeza</label>
                   <select id={`c-${s.source_id}`} name="certainty" defaultValue={s.plan?.certainty ?? "PROBABLE"}><option value="GUARANTEED">Garantido</option><option value="PROBABLE">Provável</option></select>
                 </div>
-                <div><label htmlFor={`t-${s.source_id}`}>Retenção estimada (%)</label><input id={`t-${s.source_id}`} name="tax" inputMode="decimal" defaultValue={s.plan?.tax_rate_bps != null ? String(s.plan.tax_rate_bps / 100).replace(".", ",") : ""} /></div>
+                <div><label htmlFor={`t-${s.source_id}`}>Retenção estimada (%) <small className="muted">(em branco: a da renda ou o padrão do regime)</small></label><input id={`t-${s.source_id}`} name="tax" inputMode="decimal" defaultValue={s.plan?.tax_rate_bps != null ? String(s.plan.tax_rate_bps / 100).replace(".", ",") : ""} /></div>
               </div>
               {s.plan?.inherited && <p className="muted">Herdando o padrão mensal ({s.plan.units} unid.). Salvar cria o plano deste mês.</p>}
               <p><button type="submit" disabled={busy}>Salvar composição</button></p>

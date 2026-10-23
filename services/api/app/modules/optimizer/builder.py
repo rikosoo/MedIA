@@ -25,6 +25,8 @@ from app.modules.schedule.router import (
     capacity_intervals,
 )
 from app.modules.schedule.router import overview as schedule_overview
+from app.modules.tax.defaults import load as load_tax_defaults
+from app.modules.tax.defaults import resolve as resolve_tax
 from finance_engine import (
     StreamInput,
     compute_stream,
@@ -165,6 +167,7 @@ def build(db: Session, ctx: TenantContext, req) -> Built:
             busy.append(Interval(ev.end, ev.end + timedelta(minutes=ev.recovery_minutes)))
 
     plans = effective_plans(db, ctx, m)
+    taxd = load_tax_defaults(db, ctx.organization_id)
     activities: list[Activity] = []
     cands: list[Candidate] = []
     built = Built(
@@ -201,7 +204,10 @@ def build(db: Session, ctx: TenantContext, req) -> Built:
                 )
             r = w.income_rule
             plan = plans.get(("WORK", w.id))
-            tax = plan.tax_rate_bps if plan and plan.tax_rate_bps is not None else r.tax_rate_bps
+            explicit = (
+                plan.tax_rate_bps if plan and plan.tax_rate_bps is not None else r.tax_rate_bps
+            )
+            tax, _src = resolve_tax(taxd, explicit, w.regime)
             gross, var = r.gross_cents, r.variable_cost_cents
             net = gross - var - _ceil_div(gross * tax, 10_000)
             committed = max(r.commitment_minutes, r.duration_minutes)
@@ -270,7 +276,7 @@ def build(db: Session, ctx: TenantContext, req) -> Built:
                 raise HTTPException(422, "Serviço inválido")
             econ, rp = _economics(s, _policy_of(db, ctx, s), s.price_cents)
             plan = plans.get(("SERVICE", s.id))
-            tax = plan.tax_rate_bps if plan and plan.tax_rate_bps is not None else 0
+            tax, _src = resolve_tax(taxd, plan.tax_rate_bps if plan else None, taxd.clinic_regime)
             gross = econ.gross_revenue_cents
             var = econ.fee_cents + econ.variable_cost_cents
             acq = a.acquisition_cost_cents

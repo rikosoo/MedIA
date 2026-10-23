@@ -133,7 +133,8 @@ class IncomeRule(Base, IdMixin, TimestampMixin):
     travel_minutes: Mapped[int] = mapped_column(Integer, default=0)
     variable_cost_cents: Mapped[int] = mapped_column(BigInteger, default=0)
     # Retenção/tributo estimado em pontos-base (1500 = 15,00%). Sempre estimativa (PRD 7.5).
-    tax_rate_bps: Mapped[int] = mapped_column(Integer, default=0)
+    # None = "não informada": vale o padrão do regime, se o usuário o habilitou (tax_settings).
+    tax_rate_bps: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     work_source: Mapped[WorkSource] = relationship(back_populates="income_rule")
 
@@ -589,3 +590,16 @@ class BillingEvent(Base, IdMixin, TimestampMixin):
     event_id: Mapped[str] = mapped_column(String(80), unique=True)
     event_type: Mapped[str] = mapped_column(String(60))
     organization_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+
+
+class TaxSetting(Base, IdMixin, TimestampMixin):
+    """Alíquotas médias padrão da organização (estimativas, nunca tributo apurado)."""
+
+    __tablename__ = "tax_settings"
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id"), unique=True, index=True
+    )
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    pf_bps: Mapped[int] = mapped_column(Integer, default=2_700)
+    pj_bps: Mapped[int] = mapped_column(Integer, default=1_500)
+    clinic_regime: Mapped[str] = mapped_column(String(2), default="PJ")  # regime dos serviços

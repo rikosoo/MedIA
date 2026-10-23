@@ -12,6 +12,9 @@ from app.db.base import utcnow
 from app.db.models import IncomeRule, Regime, UnitType, WorkSource, WorkType
 from app.db.session import get_db
 from app.modules.billing.entitlements import check_limit
+from app.modules.tax.defaults import TaxDefaults
+from app.modules.tax.defaults import load as load_tax_defaults
+from app.modules.tax.defaults import resolve as resolve_tax
 from finance_engine import per_hour_cents
 
 router = APIRouter(prefix="/api/v1/work-sources", tags=["work-sources"])
@@ -26,7 +29,8 @@ class IncomeRuleIn(BaseModel):
     commitment_minutes: int = Field(default=0, ge=0, le=MAX_MINUTES)
     travel_minutes: int = Field(default=0, ge=0, le=MAX_MINUTES)
     variable_cost_cents: int = Field(default=0, ge=0, le=10**12)
-    tax_rate_bps: int = Field(default=0, ge=0, le=10_000)
+    # None = não informada: vale o padrão do regime, se habilitado em Tributos PF/PJ.
+    tax_rate_bps: int | None = Field(default=None, ge=0, le=10_000)
 
     @model_validator(mode="after")
     def _commitment_covers_duration(self):
@@ -70,9 +74,10 @@ class WorkSourceOut(BaseModel):
     tax_is_estimate: bool = True  # PRD 7.5: nunca apresentar como valor definitivo
 
 
-def _out(w: WorkSource) -> WorkSourceOut:
+def _out(w: WorkSource, taxd: TaxDefaults) -> WorkSourceOut:
     r = w.income_rule
-    net_cents = r.gross_cents - r.variable_cost_cents - (r.gross_cents * r.tax_rate_bps) // 10_000
+    tax_bps, tax_src = resolve_tax(taxd, r.tax_rate_bps, w.regime)
+    net_cents = r.gross_cents - r.variable_cost_cents - (r.gross_cents * tax_bps) // 10_000
     return WorkSourceOut(
         id=str(w.id),
         owner_user_id=str(w.owner_user_id),
@@ -89,7 +94,9 @@ def _out(w: WorkSource) -> WorkSourceOut:
             "commitment_minutes": r.commitment_minutes,
             "travel_minutes": r.travel_minutes,
             "variable_cost_cents": r.variable_cost_cents,
-            "tax_rate_bps": r.tax_rate_bps,
+            "tax_rate_bps": r.tax_rate_bps,  # como foi informada (None = usar o padrão)
+            "effective_tax_bps": tax_bps,
+            "tax_rate_source": tax_src,  # INFORMADA | PADRAO | NENHUMA
             "estimated_net_cents": net_cents,
             "net_per_active_hour_cents": per_hour_cents(net_cents, r.duration_minutes),
             "net_per_committed_hour_cents": per_hour_cents(net_cents, r.commitment_minutes),
@@ -127,7 +134,8 @@ def list_work(
     q = _visible(ctx).order_by(WorkSource.created_at, WorkSource.id)
     if not include_archived:
         q = q.where(WorkSource.status == "active")
-    return [_out(w) for w in db.scalars(q).all()]
+    taxd = load_tax_defaults(db, ctx.organization_id)
+    return [_out(w, taxd) for w in db.scalars(q).all()]
 
 
 @router.post("", response_model=WorkSourceOut, status_code=status.HTTP_201_CREATED)
@@ -158,14 +166,14 @@ def create_work(
         actor_user_id=ctx.user.id,
     )
     db.commit()
-    return _out(w)
+    return _out(w, load_tax_defaults(db, ctx.organization_id))
 
 
 @router.get("/{work_id}", response_model=WorkSourceOut)
 def get_work(
     work_id: uuid.UUID, ctx: TenantContext = Depends(get_tenant), db: Session = Depends(get_db)
 ) -> WorkSourceOut:
-    return _out(_get(db, ctx, work_id))
+    return _out(_get(db, ctx, work_id), load_tax_defaults(db, ctx.organization_id))
 
 
 @router.patch("/{work_id}", response_model=WorkSourceOut)
@@ -192,7 +200,7 @@ def update_work(
         actor_user_id=ctx.user.id,
     )
     db.commit()
-    return _out(w)
+    return _out(w, load_tax_defaults(db, ctx.organization_id))
 
 
 @router.delete("/{work_id}", status_code=status.HTTP_204_NO_CONTENT)
