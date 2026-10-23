@@ -87,7 +87,7 @@ O primeiro build leva alguns minutos. A API aplica as migrações do banco sozin
 Uma `t3.small` + `db.t4g.micro` + IP elástico + armazenamento custa algumas dezenas de dólares por mês; confira no *AWS Pricing Calculator* para São Paulo. Para pausar: pare a EC2 e o RDS (o RDS religa sozinho após 7 dias). Para apagar: desligue a *Deletion protection*, apague o RDS (guarde um snapshot final), libere o Elastic IP e termine a EC2.
 
 ## Problemas comuns
-- **Página presa em "Carregando…" (sem estilo):** o Caddy desliga o HTTP/3 (UDP 443 não está aberto no `sg-app`). Se persistir, abra F12 → *Network*, recarregue com Ctrl+Shift+R e procure linhas vermelhas ou *pending*; teste numa janela anônima.
+- **Página presa em "Carregando…" (sem estilo):** causa já corrigida — o site não pode ser construído em `/app` dentro do contêiner (o Next.js confunde com a rota `/app`); o `Dockerfile` usa `/srv/web` e a CI confere o HTML do login. Se ainda acontecer, faça `git pull` e `up -d --build web`. O Caddy também desliga o HTTP/3 (UDP 443 fechado no `sg-app`). Se persistir, abra F12 → *Network*, recarregue com Ctrl+Shift+R e procure linhas vermelhas ou *pending*; teste numa janela anônima.
 - **Certificado não sai:** o DNS ainda não aponta para o Elastic IP, ou 80/443 não estão abertas no `sg-app`. Veja `logs caddy`.
 - **API não conecta no banco:** `sg-db` precisa aceitar `sg-app` na 5432; a senha na URL não pode ter caracteres especiais.
 - **API reinicia em loop pedindo `SECRET_KEY`:** falta `SECRET_KEY` ou `COOKIE_SECURE=true` no `.env.prod`.
