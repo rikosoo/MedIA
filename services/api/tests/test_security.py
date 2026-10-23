@@ -25,7 +25,7 @@ from app.maintenance import purge
 from tests.conftest import SHIFT
 from tests.test_goals import goal
 
-PWD = "senha-bem-longa-123"
+PWD = "Senha-bem-longa-123!"
 
 
 def login(app, email="a@x.com", password=PWD, **kw):
@@ -62,11 +62,65 @@ def test_terms_must_be_accepted_and_are_recorded(app, make_user):
         assert u.terms_accepted_at is not None and u.terms_version
 
 
-@pytest.mark.parametrize("pwd", ["1234567890", "aaaaaaaaaaaa", "senha12345", "joaosilva-123456"])
-def test_weak_passwords_rejected(app, pwd):
-    r = TestClient(app).post("/api/v1/auth/register", json={"email": "joaosilva@x.com", "password": pwd,
-        "name": "João", "organization_name": "O", "accept_terms": True})  # fmt: skip
-    assert r.status_code == 422, pwd
+def register_with(app, pwd, email="joaosilva@x.com", name="João"):
+    return TestClient(app).post("/api/v1/auth/register", json={"email": email, "password": pwd, "name": name,
+        "organization_name": "O", "accept_terms": True})  # fmt: skip
+
+
+@pytest.mark.parametrize("pwd,why", [
+    ("Ab1!x", "só 5 caracteres"),
+    ("ab1!xyz", "sem maiúscula"),
+    ("AB1!XYZ", "sem minúscula não é exigida: este caso deve PASSAR"),
+    ("Ab!xyzw", "sem número"),
+    ("Ab1xyzw", "sem caractere especial"),
+    ("123456", "só números"),
+    ("A1!A1!", "poucos caracteres distintos"),
+])  # fmt: skip
+def test_password_rule_each_requirement(app, pwd, why):
+    r = register_with(app, pwd)
+    if pwd == "AB1!XYZ":
+        assert r.status_code == 201, why  # minúscula não é exigida
+    else:
+        assert r.status_code == 422, (pwd, why)
+        assert (
+            "maiúscula" in r.text
+            or "fraca" in r.text
+            or "String should have" in r.text
+            or "ao menos" in r.text
+        )
+
+
+@pytest.mark.parametrize("pwd", ["Ab1!xy", "A1!bcd", "Zz9#qw", "Minha@Senha1", "ÁguaViva#9"])
+def test_six_character_minimum_with_complexity_is_accepted(app, pwd):
+    assert (
+        register_with(app, pwd, email=f"{abs(hash(pwd))}@x.com", name="Fulana de Tal").status_code
+        == 201
+    ), pwd
+
+
+@pytest.mark.parametrize(
+    "pwd", ["Senha12345!", "Senha123!", "Password1!", "Admin123#", "Joaosilva#1", "João@Silva1"]
+)
+def test_trivial_or_personal_passwords_still_rejected(app, pwd):
+    assert register_with(app, pwd).status_code == 422, pwd
+
+
+def test_rule_applies_to_password_change_too(app, make_user):
+    api = make_user("a@x.com")
+    for bad in ("abcdef", "Abcdef", "Abcde1", "Ab1!x"):
+        r = api.req(
+            "POST",
+            "/api/v1/auth/change-password",
+            json={"current_password": PWD, "new_password": bad},
+        )
+        assert r.status_code == 422, bad
+    ok = api.req(
+        "POST",
+        "/api/v1/auth/change-password",
+        json={"current_password": PWD, "new_password": "Nova#1x"},
+    )
+    assert ok.status_code == 204
+    assert login(app, password="Nova#1x").status_code == 200
 
 
 def test_change_password_revokes_other_sessions(app, make_user):
@@ -77,14 +131,14 @@ def test_change_password_revokes_other_sessions(app, make_user):
     bad = api.req(
         "POST",
         "/api/v1/auth/change-password",
-        json={"current_password": "errada-errada", "new_password": "outra-senha-forte-9"},
+        json={"current_password": "errada-errada", "new_password": "Outra-senha-forte-9!"},
     )
     assert bad.status_code == 403
     assert (
         api.req(
             "POST",
             "/api/v1/auth/change-password",
-            json={"current_password": PWD, "new_password": "outra-senha-forte-9"},
+            json={"current_password": PWD, "new_password": "Outra-senha-forte-9!"},
         ).status_code
         == 204
     )
@@ -92,7 +146,7 @@ def test_change_password_revokes_other_sessions(app, make_user):
     assert api.http.get("/api/v1/me").status_code == 200  # a atual continua
     assert (
         login(app).status_code == 401
-        and login(app, password="outra-senha-forte-9").status_code == 200
+        and login(app, password="Outra-senha-forte-9!").status_code == 200
     )
 
 

@@ -88,7 +88,7 @@ def test_sql_injection_in_login_and_register_fields(app):
         assert c.post(
             "/api/v1/auth/login", json={"email": f"{p}@x.com", "password": "x"}
         ).status_code in (401, 422)
-        assert c.post("/api/v1/auth/register", json={"email": "z@x.com", "password": "senha-bem-longa-123", "name": p,
+        assert c.post("/api/v1/auth/register", json={"email": "z@x.com", "password": "Senha-bem-longa-123!", "name": p,
             "organization_name": p, "accept_terms": True}).status_code in (201, 409)  # fmt: skip
     assert users_intact(app)
 
@@ -260,7 +260,7 @@ def test_mass_assignment_fields_are_ignored(app, make_user):
 def test_register_cannot_choose_a_role_or_join_an_existing_org(app, make_user):
     owner = make_user("o@x.com")
     c = TestClient(app)
-    r = c.post("/api/v1/auth/register", json={"email": "n@x.com", "password": "senha-bem-longa-123", "name": "N", "organization_name": "O",
+    r = c.post("/api/v1/auth/register", json={"email": "n@x.com", "password": "Senha-bem-longa-123!", "name": "N", "organization_name": "O",
         "accept_terms": True, "role": "OWNER", "organization_id": owner.org_id, "is_admin": True})  # fmt: skip
     assert r.status_code == 201
     orgs = c.get("/api/v1/me").json()["organizations"]
@@ -308,7 +308,7 @@ def test_personal_objects_are_not_readable_by_org_peers(make_user):
 def test_cookie_flags_and_no_secrets_in_responses(app, make_user):
     api = make_user("a@x.com")
     login = TestClient(app).post(
-        "/api/v1/auth/login", json={"email": "a@x.com", "password": "senha-bem-longa-123"}
+        "/api/v1/auth/login", json={"email": "a@x.com", "password": "Senha-bem-longa-123!"}
     )
     ck = login.headers["set-cookie"].lower()
     assert "httponly" in ck and "samesite=lax" in ck and "path=/" in ck
@@ -334,7 +334,7 @@ def test_secure_cookie_flag_when_configured(app, make_user, monkeypatch):
     get_settings.cache_clear()
     try:
         r = TestClient(app).post(
-            "/api/v1/auth/login", json={"email": "a@x.com", "password": "senha-bem-longa-123"}
+            "/api/v1/auth/login", json={"email": "a@x.com", "password": "Senha-bem-longa-123!"}
         )
         assert (
             "secure" in r.headers["set-cookie"].lower() and "strict-transport-security" in r.headers
@@ -347,7 +347,7 @@ def test_session_is_rotated_on_login_and_dead_after_logout(app, make_user):
     api = make_user("a@x.com")
     old = api.http.cookies.get("fm_session")
     c = TestClient(app)
-    c.post("/api/v1/auth/login", json={"email": "a@x.com", "password": "senha-bem-longa-123"})
+    c.post("/api/v1/auth/login", json={"email": "a@x.com", "password": "Senha-bem-longa-123!"})
     assert c.cookies.get("fm_session") != old  # novo token a cada login (sem fixação de sessão)
     stolen = TestClient(app)
     stolen.cookies.set("fm_session", old)

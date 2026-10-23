@@ -44,7 +44,7 @@ from app.db.models import (
     WorkSource,
 )  # fmt: skip
 from app.db.session import get_db
-from app.modules.auth.router import check_password, second_factor_ok
+from app.modules.auth.router import MIN_PASSWORD_LENGTH, check_password, second_factor_ok
 
 router = APIRouter(prefix="/api/v1", tags=["account"])
 
@@ -85,7 +85,7 @@ def update_profile(
 
 class PasswordIn(BaseModel):
     current_password: str = Field(max_length=128)
-    new_password: str = Field(min_length=10, max_length=128)
+    new_password: str = Field(min_length=MIN_PASSWORD_LENGTH, max_length=128)
 
 
 @router.post("/auth/change-password", status_code=status.HTTP_204_NO_CONTENT)
