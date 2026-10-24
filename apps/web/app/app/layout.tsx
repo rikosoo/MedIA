@@ -8,6 +8,7 @@ import { SessionContext } from "./session";
 
 // Rotas do PRD §4. Só as marcadas `ready` existem nesta entrega (Sprints 0–10).
 const NAV = [
+  { href: "/app/start", label: "Plano direto", ready: true },
   { href: "/app/dashboard", label: "Início", ready: true },
   { href: "/app/goals", label: "Minha Meta", ready: true },
   { href: "/app/optimizer", label: "Otimizador Misto", ready: true },
@@ -26,6 +27,25 @@ const NAV = [
   { href: "/app/settings", label: "Configurações", ready: true },
 ];
 
+// Plano Gratuito (fora do teste): só o essencial, em ordem de uso.
+const SIMPLE_NAV = [
+  { href: "/app/start", label: "Início", ready: true },
+  { href: "/app/work", label: "Minhas rendas", ready: true },
+  { href: "/app/finances", label: "Meus custos", ready: true },
+  { href: "/app/goals", label: "Minha meta", ready: true },
+  { href: "/app/optimizer", label: "Ideias (otimizador)", ready: true },
+  { href: "/app/billing", label: "Planos", ready: true },
+  { href: "/app/settings", label: "Configurações", ready: true },
+];
+const SIMPLE_BOTTOM = [
+  { href: "/app/start", label: "Início" },
+  { href: "/app/work", label: "Rendas" },
+  { href: "/app/finances", label: "Custos" },
+  { href: "/app/goals", label: "Meta" },
+];
+
+type Ent = { simple: boolean; effective_plan: string; in_trial: boolean };
+
 const BOTTOM = [
   { href: "/app/dashboard", label: "Início" },
   { href: "/app/goals", label: "Meta" },
@@ -40,6 +60,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<"loading" | "error">("loading");
   const [unread, setUnread] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [ent, setEnt] = useState<Ent | null>(null);
 
   useEffect(() => {
     api<Me>("/api/v1/me")
@@ -49,6 +70,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         else setState("error");
       });
   }, [router]);
+
+  // Plano em vigor (qualquer papel): define se a interface é a enxuta do plano Gratuito.
+  useEffect(() => {
+    if (!me) return;
+    api<Ent>("/api/v1/billing/entitlements", { orgId: me.organizations[0].id })
+      .then(setEnt)
+      .catch(() => setEnt({ simple: false, effective_plan: "?", in_trial: false })); // na dúvida, menu completo
+  }, [me]);
+
+  useEffect(() => {
+    if (ent?.simple && pathname === "/app/dashboard") router.replace("/app/start");
+  }, [ent, pathname, router]);
 
   // Sino: gera avisos uma vez por sessão do navegador (só para quem ligou) e mostra os não lidos.
   useEffect(() => {
@@ -80,9 +113,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [menuOpen]);
 
   if (state === "error") return <main role="alert">Não foi possível carregar sua sessão. Tente novamente.</main>;
-  if (!me) return <main aria-busy="true">Carregando…</main>;
+  if (!me || !ent) return <main aria-busy="true">Carregando…</main>;
 
   const org = me.organizations[0];
+  const nav = ent.simple ? SIMPLE_NAV : NAV;
+  const bottom = ent.simple ? SIMPLE_BOTTOM : BOTTOM;
 
   async function logout() {
     await api("/api/v1/auth/logout", { method: "POST", csrf: me!.csrf_token });
@@ -94,7 +129,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <a className="skip" href="#conteudo">Ir para o conteúdo</a>
       <div className="shell">
         <nav className="sidebar" aria-label="Principal">
-          {NAV.map((n) =>
+          {nav.map((n) =>
             n.ready ? (
               <Link key={n.href} href={n.href} aria-current={pathname === n.href ? "page" : undefined}>
                 {n.label}
@@ -132,7 +167,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </div>
       {menuOpen && (
         <div className="menusheet" id="menu-sheet" role="dialog" aria-label="Menu">
-          {NAV.map((n) =>
+          {nav.map((n) =>
             n.ready ? (
               <Link key={n.href} href={n.href} aria-current={pathname === n.href ? "page" : undefined}>
                 {n.label}
@@ -146,7 +181,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       )}
       <nav className="bottomnav" aria-label="Atalhos">
-        {BOTTOM.map((n) => (
+        {bottom.map((n) => (
           <Link key={n.href} href={n.href} aria-current={pathname === n.href ? "page" : undefined}>
             {n.label}
           </Link>
