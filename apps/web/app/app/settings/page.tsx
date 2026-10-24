@@ -90,8 +90,8 @@ export default function SettingsPage() {
         <form onSubmit={(e) => { e.preventDefault(); const f = e.currentTarget; void act(async () => { await call("/api/v1/auth/change-password", { method: "POST", body: { current_password: val(e, "cur"), new_password: val(e, "new") } }); f.reset(); loadSessions(); }, "Senha alterada. Os outros dispositivos foram desconectados."); }}>
           <label htmlFor="cur">Senha atual</label>
           <input id="cur" name="cur" type="password" required autoComplete="current-password" />
-          <label htmlFor="new">Nova senha (mínimo 10 caracteres)</label>
-          <input id="new" name="new" type="password" required minLength={10} autoComplete="new-password" />
+          <label htmlFor="new">Nova senha (mínimo 6, com maiúscula, número e símbolo)</label>
+          <input id="new" name="new" type="password" required minLength={6} autoComplete="new-password" />
           <button type="submit" disabled={busy}>Trocar senha</button>
         </form>
 

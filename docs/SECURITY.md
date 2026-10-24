@@ -3,7 +3,7 @@
 Resumo do que existe no código (Sprint 11) e do que **depende de infraestrutura/decisão fora dele**.
 
 ## Autenticação e conta
-- Senha com Argon2; política: 10+ caracteres, sem sequências triviais, sem conter e-mail/nome.
+- Senha com Argon2; política: mínimo de **6** caracteres com maiúscula, número e caractere especial, sem sequências triviais e sem conter e-mail/nome (decisão de produto; senhas mais longas são mais seguras do que mais regras de composição).
 - Sessão por cookie `httpOnly` + CSRF em toda mutação; alterar a senha encerra as outras sessões; o usuário lista e encerra seus dispositivos.
 - 2FA (TOTP, RFC 6238) opcional com 8 códigos de recuperação de uso único (só o hash fica no banco). O segredo TOTP é cifrado em repouso (Fernet, chave derivada de `SECRET_KEY`).
 - Bloqueio por conta: 5 falhas → 15 min (429), configurável. Limite por IP nas rotas de autenticação (60/min, em memória **por processo**: com vários processos/instâncias, usar limite no proxy/WAF).

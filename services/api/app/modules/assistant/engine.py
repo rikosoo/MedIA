@@ -26,6 +26,8 @@ from app.modules.goals.projection import (
     shift_month,
 )
 from app.modules.schedule.router import overview as schedule_overview
+from app.modules.tax.defaults import load as load_tax_defaults
+from app.modules.tax.defaults import resolve as resolve_tax
 from finance_engine import StreamInput, compute_stream, format_brl, goal_gap_cents
 from finance_engine.forecast import weekdays_in_month
 
@@ -194,6 +196,7 @@ class Unit:
 def catalog(db: Session, ctx: TenantContext, with_services: bool) -> list[Unit]:
     """Resultado de 1 unidade de cada trabalho do usuário e (se permitido) de cada serviço."""
     out: list[Unit] = []
+    taxd = load_tax_defaults(db, ctx.organization_id)
     for w in db.scalars(
         select(WorkSource).where(
             WorkSource.organization_id == ctx.organization_id,
@@ -207,7 +210,8 @@ def catalog(db: Session, ctx: TenantContext, with_services: bool) -> list[Unit]:
         r = w.income_rule
         si = StreamInput(
             f"WORK:{w.id}", "WORK", 1, "PROBABLE", r.gross_cents, r.variable_cost_cents,
-            r.tax_rate_bps, r.duration_minutes * 10, (r.commitment_minutes or r.duration_minutes) * 10,
+            resolve_tax(taxd, r.tax_rate_bps, w.regime)[0], r.duration_minutes * 10,
+            (r.commitment_minutes or r.duration_minutes) * 10,
         )  # fmt: skip
         u = Unit("WORK", w.name, compute_stream(si), w.work_type)
         out.append(u)
@@ -222,7 +226,8 @@ def catalog(db: Session, ctx: TenantContext, with_services: bool) -> list[Unit]:
             econ, _ = _economics(s, _policy_of(db, ctx, s), s.price_cents)
             si = StreamInput(
                 f"SERVICE:{s.id}", "SERVICE", 1, "PROBABLE", econ.gross_revenue_cents,
-                econ.fee_cents + econ.variable_cost_cents, 0, econ.minutes_x10, econ.minutes_x10,
+                econ.fee_cents + econ.variable_cost_cents,
+                resolve_tax(taxd, None, taxd.clinic_regime)[0], econ.minutes_x10, econ.minutes_x10,
             )  # fmt: skip
             out.append(Unit("SERVICE", s.name, compute_stream(si)))
     return out

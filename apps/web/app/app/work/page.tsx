@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { api, ApiError } from "@/lib/api";
 import { formatBRL, parseBRLToCents } from "@/lib/money";
@@ -12,6 +13,8 @@ type Work = {
   regime: string;
   income: {
     gross_cents: number;
+    effective_tax_bps: number;
+    tax_rate_source: string; // INFORMADA | PADRAO | NENHUMA
     estimated_net_cents: number;
     net_per_committed_hour_cents: number | null;
   };
@@ -55,7 +58,8 @@ export default function WorkPage() {
           income: {
             gross_cents: gross, unit_type: f.get("unit_type"),
             duration_minutes: Math.round(hours * 60),
-            tax_rate_bps: Math.round(Number(f.get("tax") || 0) * 100),
+            // em branco = "não informada": vale o padrão do regime, se habilitado em Tributos PF/PJ
+            tax_rate_bps: String(f.get("tax") ?? "").trim() === "" ? null : Math.round(Number(f.get("tax")) * 100),
           },
         },
       });
@@ -95,7 +99,7 @@ export default function WorkPage() {
           </div>
           <div><label htmlFor="gross">Valor bruto (R$)</label><input id="gross" name="gross" inputMode="decimal" required placeholder="2.000,00" /></div>
           <div><label htmlFor="hours">Horas ativas</label><input id="hours" name="hours" type="number" min="0" step="0.5" /></div>
-          <div><label htmlFor="tax">Retenção estimada (%)</label><input id="tax" name="tax" type="number" min="0" max="100" step="0.01" /></div>
+          <div><label htmlFor="tax">Retenção estimada (%)</label><input id="tax" name="tax" type="number" min="0" max="100" step="0.01" aria-describedby="tax-hint" /><small id="tax-hint" className="muted">Em branco: usa o padrão do regime, se habilitado em <Link href="/app/taxes">Tributos PF/PJ</Link>.</small></div>
         </div>
         {error && <p className="error" role="alert">{error}</p>}
         <p><button type="submit" disabled={saving}>{saving ? "Salvando…" : "Salvar trabalho"}</button></p>
@@ -107,12 +111,13 @@ export default function WorkPage() {
       ) : (
         <div className="tablewrap card">
           <table>
-            <thead><tr><th>Nome</th><th>Tipo</th><th>Regime</th><th>Bruto</th><th>Líquido est.*</th><th>Líq./h comprometida*</th></tr></thead>
+            <thead><tr><th>Nome</th><th>Tipo</th><th>Regime</th><th>Bruto</th><th>Retenção*</th><th>Líquido est.*</th><th>Líq./h comprometida*</th></tr></thead>
             <tbody>
               {items.map((w) => (
                 <tr key={w.id}>
                   <td>{w.name}</td><td>{TYPES[w.work_type]}</td><td>{w.regime}</td>
                   <td>{formatBRL(w.income.gross_cents)}</td>
+                  <td>{w.income.effective_tax_bps ? `${(w.income.effective_tax_bps / 100).toFixed(2).replace(".", ",")}%` : "—"}{w.income.tax_rate_source === "PADRAO" ? " (padrão)" : ""}</td>
                   <td>{formatBRL(w.income.estimated_net_cents)}</td>
                   <td>{w.income.net_per_committed_hour_cents === null ? "—" : formatBRL(w.income.net_per_committed_hour_cents)}</td>
                 </tr>

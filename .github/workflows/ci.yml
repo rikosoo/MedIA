@@ -52,5 +52,7 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - name: Tela de login gerada corretamente (formulário e CSS no HTML)
+        run: grep -q '<form' .next/server/app/login.html && grep -q 'stylesheet' .next/server/app/login.html
       - name: Vulnerabilidades críticas das dependências (produção)
         run: npm audit --omit=dev --audit-level=critical

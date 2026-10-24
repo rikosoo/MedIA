@@ -62,13 +62,13 @@ export default function LoginPage() {
         )}
         <label htmlFor="email">E-mail</label>
         <input id="email" name="email" type="email" required autoComplete="email" />
-        <label htmlFor="password">Senha {mode === "register" && "(mínimo 10 caracteres)"}</label>
+        <label htmlFor="password">Senha {mode === "register" && "(mínimo 6, com maiúscula, número e símbolo)"}</label>
         <input
           id="password"
           name="password"
           type="password"
           required
-          minLength={mode === "register" ? 10 : undefined}
+          minLength={mode === "register" ? 6 : undefined}
           autoComplete={mode === "login" ? "current-password" : "new-password"}
         />
         {mode === "login" && needOtp && (

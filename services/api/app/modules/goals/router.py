@@ -403,14 +403,29 @@ def dashboard(
             "schedule_feasible": ov["feasible"],
         }
 
+    # O plano padrão (sem mês) vale para qualquer mês, mas não existia antes de ser criado: meses
+    # anteriores ao primeiro plano padrão, sem plano próprio, não têm projeção (null), só realizado.
+    plans = list(
+        db.scalars(select(IncomePlan).where(IncomePlan.organization_id == ctx.organization_id))
+    )
+    own_months = {pl.month for pl in plans if pl.month is not None}
+    defaults = [pl.created_at for pl in plans if pl.month is None]
+    first_default = min(defaults) if defaults else None
+    first_default_month = (
+        date(first_default.year, first_default.month, 1) if first_default else None
+    )
+
     series = []
     for i in range(-11, 1):  # evolução: 12 meses terminando no mês consultado
         mm = shift_month(m, i)
         n = month_numbers(db, ctx, mm, metric)
         gm = get_goal(db, ctx, mm)
+        no_plan_yet = (
+            first_default_month is not None and mm < first_default_month and mm not in own_months
+        )
         series.append({
             "month": month_str(mm),
-            "projected_cents": n["projection"].value_cents,
+            "projected_cents": None if no_plan_yet else n["projection"].value_cents,
             "realized_cents": n["realized_value"],
             "target_cents": gm.target_cents if (gm and gm.metric_type == metric) else None,
         })  # fmt: skip

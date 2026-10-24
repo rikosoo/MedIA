@@ -5,7 +5,7 @@ import { useWidth } from "./useWidth";
 
 export type SeriesPoint = {
   month: string;
-  projected_cents: number;
+  projected_cents: number | null; // null: ainda não havia plano para o mês
   realized_cents: number;
   target_cents: number | null;
 };
@@ -16,7 +16,7 @@ const PAD = { l: 8, r: 8, t: 12, b: 30 };
 /** Barras agrupadas projetado (marinho) x realizado (esmeralda). Valores negativos descem da linha-base. */
 export function MonthBars({ series }: { series: SeriesPoint[] }) {
   const [ref, W] = useWidth();
-  const vals = series.flatMap((p) => [p.projected_cents, p.realized_cents, p.target_cents ?? 0, 0]);
+  const vals = series.flatMap((p) => [p.projected_cents ?? 0, p.realized_cents, p.target_cents ?? 0, 0]);
   const max = Math.max(...vals);
   const min = Math.min(...vals);
   const span = Math.max(max - min, 1);
@@ -39,7 +39,7 @@ export function MonthBars({ series }: { series: SeriesPoint[] }) {
           const x0 = PAD.l + i * slot + (slot - 2 * bw - 2) / 2;
           return (
             <g key={p.month}>
-              {bar(p.projected_cents, x0, "var(--primary-chart)", `${p.month} projetado: ${formatBRL(p.projected_cents)}`)}
+              {p.projected_cents !== null && bar(p.projected_cents, x0, "var(--primary-chart)", `${p.month} projetado: ${formatBRL(p.projected_cents)}`)}
               {bar(p.realized_cents, x0 + bw + 2, "var(--accent)", `${p.month} realizado: ${formatBRL(p.realized_cents)}`)}
               {p.target_cents !== null && (
                 <line x1={x0 - 2} x2={x0 + 2 * bw + 4} y1={y(p.target_cents)} y2={y(p.target_cents)} stroke="var(--text)" strokeDasharray="3 2"><title>{`${p.month} meta: ${formatBRL(p.target_cents)}`}</title></line>
@@ -61,7 +61,7 @@ export function MonthBars({ series }: { series: SeriesPoint[] }) {
             <tbody>
               {series.map((p) => (
                 <tr key={p.month}>
-                  <td>{p.month}</td><td>{formatBRL(p.projected_cents)}</td><td>{formatBRL(p.realized_cents)}</td>
+                  <td>{p.month}</td><td>{p.projected_cents === null ? "—" : formatBRL(p.projected_cents)}</td><td>{formatBRL(p.realized_cents)}</td>
                   <td>{p.target_cents === null ? "—" : formatBRL(p.target_cents)}</td>
                 </tr>
               ))}

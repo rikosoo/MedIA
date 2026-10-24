@@ -16,7 +16,7 @@ def test_register_login_logout(app, make_user):
     assert bad.status_code == 401
     ghost = c.post("/api/v1/auth/login", json={"email": "no@x.com", "password": "errada-errada"})
     assert ghost.status_code == 401 and ghost.json() == bad.json()
-    ok = c.post("/api/v1/auth/login", json={"email": "A@x.com", "password": "senha-bem-longa-123"})
+    ok = c.post("/api/v1/auth/login", json={"email": "A@x.com", "password": "Senha-bem-longa-123!"})
     assert ok.status_code == 200
     assert "httponly" in ok.headers["set-cookie"].lower()
 
@@ -27,7 +27,7 @@ def test_duplicate_email_and_weak_password(app, make_user):
     base = {"email": "a@x.com", "name": "A", "organization_name": "O", "accept_terms": True}
     assert (
         c.post(
-            "/api/v1/auth/register", json={**base, "password": "senha-bem-longa-123"}
+            "/api/v1/auth/register", json={**base, "password": "Senha-bem-longa-123!"}
         ).status_code
         == 409
     )

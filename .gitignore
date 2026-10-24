@@ -9,3 +9,5 @@ node_modules/
 *.db
 .coverage
 tsconfig.tsbuildinfo
+.env.prod
+backups/

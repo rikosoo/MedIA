@@ -303,6 +303,76 @@ def test_series_has_twelve_months_ending_at_requested(make_user):
     assert s[0]["projected_cents"] == 0
 
 
+def test_series_has_no_projection_before_the_default_plan_existed(make_user):
+    """O plano padrão vale para qualquer mês, mas não existia antes de ser criado: sem barra projetada."""
+    from datetime import date
+
+    api = make_user("a@x.com")
+    w = api.req("POST", "/api/v1/work-sources", json=SHIFT).json()
+    api.req(
+        "PUT",
+        "/api/v1/income-plans",
+        json={
+            "month": None,
+            "source_type": "WORK",
+            "source_id": w["id"],
+            "units": 4,
+            "certainty": "GUARANTEED",
+        },
+    )
+    today = date.today()
+    cur = f"{today.year}-{today.month:02d}"
+    s = api.req("GET", f"/api/v1/dashboard?month={cur}").json()["series"]
+    assert (
+        s[-1]["month"] == cur and s[-1]["projected_cents"] == 4 * 170_000
+    )  # do mês do plano em diante
+    assert all(p["projected_cents"] is None for p in s[:-1])  # os 11 meses anteriores
+    assert all(p["realized_cents"] == 0 for p in s)
+
+
+def test_series_keeps_projection_for_past_months_with_their_own_plan(make_user):
+    from datetime import date
+
+    api = make_user("a@x.com")
+    w = api.req("POST", "/api/v1/work-sources", json=SHIFT).json()
+    api.req(
+        "PUT",
+        "/api/v1/income-plans",
+        json={
+            "month": None,
+            "source_type": "WORK",
+            "source_id": w["id"],
+            "units": 4,
+            "certainty": "GUARANTEED",
+        },
+    )
+    past = date.today().replace(day=1)
+    past = date(past.year - (past.month <= 2), (past.month - 3) % 12 + 1, 1)  # três meses atrás
+    pm = f"{past.year}-{past.month:02d}"
+    api.req(
+        "PUT",
+        "/api/v1/income-plans",
+        json={
+            "month": pm,
+            "source_type": "WORK",
+            "source_id": w["id"],
+            "units": 2,
+            "certainty": "GUARANTEED",
+        },
+    )
+    today = date.today()
+    s = {
+        p["month"]: p
+        for p in api.req("GET", f"/api/v1/dashboard?month={today.year}-{today.month:02d}").json()[
+            "series"
+        ]
+    }
+    assert s[pm]["projected_cents"] == 2 * 170_000  # plano próprio do mês passado aparece
+    assert (
+        sum(p["projected_cents"] is None for p in s.values()) == 10
+    )  # só os outros meses antigos ficam sem barra
+
+
 # ---------- isolamento e privacidade ----------
 
 
