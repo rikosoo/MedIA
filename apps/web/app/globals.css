@@ -67,3 +67,4 @@ summary { padding: 10px 0; min-height: 44px; cursor: pointer; }
 footer.legal { padding: 16px 24px; color: var(--muted); max-width: 1200px; margin: 0 auto; }
 footer.legal a { display: inline-block; padding: 10px 4px; margin: -10px -4px; }
 progress { width: 100%; accent-color: var(--accent, currentColor); }
+.narrow { max-width: 760px; }

@@ -108,7 +108,7 @@ export default function StartPage() {
   const limits = ent?.limits;
 
   return (
-    <div>
+    <div className="narrow">
       <h1>Plano direto</h1>
       <p className="muted">Três passos para saber quanto você ganha em {monthLabel(month)} e o que fazer para bater a meta.</p>
       {error && <p role="alert" className="error">{error}{/limite|plano/i.test(error) && <> <Link href="/app/billing">Ver planos</Link></>}</p>}
