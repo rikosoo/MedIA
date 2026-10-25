@@ -1,4 +1,3 @@
-import re
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -25,26 +24,44 @@ router = APIRouter(prefix="/api/v1", tags=["auth"])
 
 
 TERMS_VERSION = "2026-10-minuta"
-_COMMON = {"1234567890", "0123456789", "qwertyuiop", "password12", "senha12345", "1q2w3e4r5t"}
+_COMMON = {  # comparadas só pelas letras e números: "Senha123!" cai em "senha123"
+    "1234567890", "0123456789", "123456789", "12345678", "qwertyuiop", "qwerty123", "1q2w3e4r5t",
+    "password", "password1", "password12", "password123", "senha123", "senha1234", "senha12345",
+    "senha123456", "admin123", "abc123", "abc12345", "mudar123", "brasil123",
+}  # fmt: skip
+
+
+MIN_PASSWORD_LENGTH = 6
+PASSWORD_RULE = (
+    f"A senha precisa ter ao menos {MIN_PASSWORD_LENGTH} caracteres, com letra maiúscula, número e "
+    "caractere especial (como ! @ # $ - _)."
+)
 
 
 def check_password(password: str, email: str = "", name: str = "") -> None:
-    """Política simples e honesta: tamanho, não ser trivial e não conter o e-mail/nome."""
+    """Mínimo de 6 caracteres com maiúscula, número e caractere especial; sem sequência trivial e
+    sem conter o e-mail ou o nome."""
     low = password.lower()
     local = email.split("@")[0].lower()
     if (
-        len(set(password)) < 5
-        or low in _COMMON
-        or re.fullmatch(r"\d+", password)
+        len(password) < MIN_PASSWORD_LENGTH
+        or not any(c.isupper() for c in password)
+        or not any(c.isdigit() for c in password)
+        or not any(not c.isalnum() for c in password)
+    ):
+        raise HTTPException(422, PASSWORD_RULE)
+    if (
+        len(set(password)) < 4
+        or "".join(c for c in low if c.isalnum()) in _COMMON
         or (len(local) >= 4 and local in low)
         or (len(name.strip()) >= 4 and name.strip().lower() in low)
     ):
-        raise HTTPException(422, "Senha fraca: evite sequências, só números e seu nome ou e-mail.")
+        raise HTTPException(422, "Senha fraca: evite sequências e o seu nome ou e-mail.")
 
 
 class RegisterIn(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=10, max_length=128)
+    password: str = Field(min_length=MIN_PASSWORD_LENGTH, max_length=128)
     name: str = Field(min_length=1, max_length=200)
     organization_name: str = Field(min_length=1, max_length=200)
     accept_terms: bool = False

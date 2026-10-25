@@ -1,5 +1,7 @@
 FROM node:22-slim
-WORKDIR /app
+# NÃO usar /app: com o projeto em /app e a rota /app do site, o Next.js troca o layout raiz pelo da área
+# logada e a tela de login sai quebrada (sem formulário nem CSS, presa em "Carregando…").
+WORKDIR /srv/web
 COPY package*.json ./
 RUN npm ci
 COPY . .

@@ -45,7 +45,7 @@ class Api:
             "/api/v1/auth/register",
             json={
                 "email": email,
-                "password": "senha-bem-longa-123",
+                "password": "Senha-bem-longa-123!",
                 "name": email.split("@")[0],
                 "organization_name": f"Org de {email}",
                 "accept_terms": True,

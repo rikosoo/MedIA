@@ -1,0 +1,18 @@
+{
+	# HTTP/3 usa UDP 443, que o grupo de segurança da AWS não abre por padrão: anunciá-lo faz alguns
+	# navegadores tentarem QUIC e travarem. Só HTTP/1.1 e HTTP/2 (TCP 443).
+	servers {
+		protocols h1 h2
+	}
+}
+
+# HTTPS automático (Let's Encrypt) para o domínio em $DOMAIN.
+{$DOMAIN} {
+	@api path /api/* /ready /health
+	handle @api {
+		reverse_proxy api:8000
+	}
+	handle {
+		reverse_proxy web:3000
+	}
+}

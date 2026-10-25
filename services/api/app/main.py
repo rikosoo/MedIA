@@ -15,16 +15,19 @@ from app.modules.auth.router import router as auth_router
 from app.modules.billing.router import router as billing_router
 from app.modules.billing.router import webhook_router as billing_webhook_router
 from app.modules.clinic.router import router as clinic_router
+from app.modules.costs.router import router as costs_router
 from app.modules.finances.router import router as finances_router
 from app.modules.forecasts.router import router as forecasts_router
 from app.modules.goals.router import router as goals_router
 from app.modules.imports.router import router as imports_router
 from app.modules.optimizer.router import router as optimizer_router
 from app.modules.organizations.router import router as org_router
+from app.modules.quick.router import router as quick_router
 from app.modules.realized.router import router as realized_router
 from app.modules.reports.router import public as reports_public_router
 from app.modules.reports.router import router as reports_router
 from app.modules.schedule.router import router as schedule_router
+from app.modules.tax.router import router as tax_router
 from app.modules.team.router import router as team_router
 from app.modules.work.router import router as work_router
 
@@ -67,6 +70,9 @@ def create_app() -> FastAPI:
         team_router,
         work_router,
         clinic_router,
+        costs_router,
+        quick_router,
+        tax_router,
         finances_router,
         schedule_router,
         goals_router,

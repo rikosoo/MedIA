@@ -78,6 +78,21 @@ def sub_out(db: Session, sub: Subscription, ctx: TenantContext, now: datetime) -
     }  # fmt: skip
 
 
+@router.get("/entitlements")
+def entitlements(ctx: TenantContext = Depends(get_tenant), db: Session = Depends(get_db)):
+    """Plano em vigor para qualquer membro (a tela escolhe o que mostrar). Sem dados de cobrança."""
+    now = utcnow()
+    sub = get_sub(db, ctx.organization_id, now)
+    db.commit()
+    eff = effective_plan(sub, now)
+    return {
+        "plan": sub.plan, "effective_plan": eff, "status": status_of(sub, now),
+        "in_trial": in_trial(sub, now), "trial_ends_at": _iso(sub.trial_ends_at),
+        "simple": eff == "FREE",  # plano Gratuito (fora do teste): interface enxuta
+        "plan_name": PLANS[eff]["name"], "limits": PLANS[eff]["limits"], "features": PLANS[eff]["features"],
+    }  # fmt: skip
+
+
 def _ctx(ctx: TenantContext) -> TenantContext:
     ctx.require(P_BILLING)
     return ctx
