@@ -24,6 +24,7 @@ const KINDS: Record<string, { label: string; value: string; qty: string; time: s
   EMPLOYMENT: { label: "CLT / salário fixo", value: "Salário mensal (R$)", qty: "", time: "Horas trabalhadas por mês", hours: "160", workType: "EMPLOYMENT" },
   OTHER: { label: "Outra renda", value: "Valor de cada (R$)", qty: "Quantidade por mês", time: "Horas de cada uma", hours: "1", workType: "OTHER" },
 };
+const STEPS = ["Meta", "Rendas", "Custos", "Ideias"];
 const COST_CODES = ["aluguel", "condominio", "utilidades", "secretaria", "equipamentos", "manutencao", "contabilidade", "marketing", "software", "material", "outros"];
 const monthNow = () => new Date().toISOString().slice(0, 7);
 const monthLabel = (m: string) => new Date(`${m}-15T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
@@ -36,6 +37,8 @@ export default function StartPage() {
   const [ent, setEnt] = useState<Ent | null>(null);
   const [cats, setCats] = useState<Record<string, string>>({});
   const [kind, setKind] = useState("CONSULT");
+  const [step, setStep] = useState(1);
+  const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const call = useCallback(<T,>(path: string, o: { method?: string; body?: unknown } = {}) => api<T>(path, { ...o, csrf: me.csrf_token, orgId: org.id }), [me.csrf_token, org.id]);
@@ -51,7 +54,7 @@ export default function StartPage() {
 
   async function run(fn: () => Promise<unknown>, form?: HTMLFormElement) {
     setBusy(true); setError(null);
-    try { await fn(); form?.reset(); load(); } catch (e) { setError(e instanceof ApiError ? e.message : "Não foi possível salvar"); } finally { setBusy(false); }
+    try { await fn(); form?.reset(); setAdding(false); load(); } catch (e) { setError(e instanceof ApiError ? e.message : "Não foi possível salvar"); } finally { setBusy(false); }
   }
 
   function saveGoal(e: React.FormEvent<HTMLFormElement>) {
@@ -106,110 +109,143 @@ export default function StartPage() {
 
   const cfg = KINDS[kind];
   const limits = ent?.limits;
+  const goNext = () => { setError(null); setAdding(false); setStep((n) => Math.min(4, n + 1)); window.scrollTo?.({ top: 0 }); };
+  const goBack = () => { setError(null); setAdding(false); setStep((n) => Math.max(1, n - 1)); window.scrollTo?.({ top: 0 }); };
+  const goTo = (n: number) => { setError(null); setAdding(false); setStep(n); };
 
   return (
-    <div className="narrow">
+    <div className="narrow wizard">
       <h1>Plano direto</h1>
-      <p className="muted">Três passos para saber quanto você ganha em {monthLabel(month)} e o que fazer para bater a meta.</p>
+      <p className="muted">Quanto você ganha em {monthLabel(month)} e o que fazer para bater a meta.</p>
+
+      <ol className="steps" aria-label="Passos">
+        {STEPS.map((label, k) => (
+          <li key={label}>
+            <button type="button" className="step" aria-current={step === k + 1 ? "step" : undefined} data-done={step > k + 1} onClick={() => goTo(k + 1)}>
+              <span className="n">{k + 1}</span><span className="t">{label}</span>
+            </button>
+          </li>
+        ))}
+      </ol>
+
+      {s && s.goal && step < 4 && (
+        <p className="gapbar" role="status">
+          {s.status === "MET" ? <>Meta atingida · sobra <strong>{formatBRL(s.result_cents)}</strong></>
+            : s.status === "SHORT" ? <>Faltam <strong>{formatBRL(s.gap_cents ?? 0)}</strong> para a meta</>
+            : <>Meta de <strong>{formatBRL(s.goal.target_cents)}</strong></>}
+        </p>
+      )}
       {error && <p role="alert" className="error">{error}{/limite|plano/i.test(error) && <> <Link href="/app/billing">Ver planos</Link></>}</p>}
 
-      <section className="card" aria-labelledby="p1">
-        <h2 id="p1">1. Quanto você quer ganhar líquido?</h2>
-        <form onSubmit={saveGoal}>
-          <label htmlFor="goal">Meta do mês (R$)</label>
-          <input id="goal" name="goal" inputMode="decimal" placeholder="50.000,00" defaultValue={s?.goal ? (s.goal.target_cents / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : ""} key={s?.goal?.target_cents ?? "none"} />
-          <button type="submit" disabled={busy}>{s?.goal ? "Atualizar meta" : "Salvar meta"}</button>
-        </form>
-      </section>
+      {step === 1 && (
+        <section className="card" aria-labelledby="p1">
+          <h2 id="p1">Quanto você quer ganhar líquido?</h2>
+          <form onSubmit={(e) => { saveGoal(e); }}>
+            <label htmlFor="goal">Meta do mês (R$)</label>
+            <input id="goal" name="goal" inputMode="decimal" placeholder="50.000,00" defaultValue={s?.goal ? (s.goal.target_cents / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : ""} key={s?.goal?.target_cents ?? "none"} />
+            <button type="submit" className="secondary" disabled={busy}>{s?.goal ? "Atualizar meta" : "Salvar meta"}</button>
+          </form>
+        </section>
+      )}
 
-      <section className="card" aria-labelledby="p2">
-        <h2 id="p2">2. De onde vem sua renda?</h2>
-        {s && s.sources.length > 0 && (
-          <ul>
-            {s.sources.map((x) => (
-              <li key={x.id}>
-                <strong>{x.name}</strong>: {x.units} por mês → {formatBRL(x.net_cents)} líquidos{" "}
-                <button type="button" className="secondary" disabled={busy} aria-label={`Remover ${x.name}`} onClick={() => removeSource(x)}>Remover</button>
-              </li>
-            ))}
-          </ul>
-        )}
-        <form onSubmit={addSource}>
-          <label htmlFor="kind">Tipo de renda</label>
-          <select id="kind" value={kind} onChange={(e) => setKind(e.target.value)}>
-            {Object.entries(KINDS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-          </select>
-          <div className="grid2" key={kind}>
-            <div><label htmlFor="name">Nome (opcional)</label><input id="name" name="name" placeholder={cfg.label} maxLength={200} /></div>
-            <div><label htmlFor="value">{cfg.value}</label><input id="value" name="value" inputMode="decimal" required placeholder="2.000,00" /></div>
-            <div><label htmlFor="hours">{cfg.time}</label><input id="hours" name="hours" inputMode="decimal" required defaultValue={cfg.hours} /></div>
-            {kind !== "EMPLOYMENT" && <div><label htmlFor="qty">{cfg.qty}</label><input id="qty" name="qty" type="number" min="1" step="1" required defaultValue={kind === "CONSULT" ? 40 : 4} /></div>}
-            {kind !== "CONSULT" && kind !== "EMPLOYMENT" && (
-              <div><label htmlFor="regime">Você recebe como</label><select id="regime" name="regime" defaultValue="PJ"><option value="PJ">PJ (empresa)</option><option value="PF">PF (pessoa física)</option></select></div>
-            )}
-          </div>
-          <button type="submit" disabled={busy}>{busy ? "Salvando…" : "Adicionar renda"}</button>
-        </form>
-        {limits?.works != null && <p className="muted"><small>Plano {ent?.plan_name}: até {limits.works} trabalhos. Consultas não entram nesse limite.</small></p>}
-      </section>
-
-      <section className="card" aria-labelledby="p3">
-        <h2 id="p3">3. Quais são seus custos por mês?</h2>
-        {s && s.costs.recurring.length > 0 && (
-          <ul>
-            {s.costs.recurring.map((c) => (
-              <li key={c.id}>
-                {c.label}: <strong>{formatBRL(c.amount_cents)}</strong>{" "}
-                <button type="button" className="secondary" disabled={busy} aria-label={`Remover custo ${c.label}`} onClick={() => run(() => call(`/api/v1/recurrences/${c.id}`, { method: "DELETE" }))}>Remover</button>
-              </li>
-            ))}
-          </ul>
-        )}
-        {s && s.costs.other_cents > 0 && <p className="muted">Mais {formatBRL(s.costs.other_cents)} em despesas lançadas no mês (veja em <Link href="/app/finances">Meus custos</Link>).</p>}
-        <form onSubmit={addCost}>
-          <div className="grid2">
-            <div><label htmlFor="category">Custo</label><select id="category" name="category" defaultValue="aluguel">{COST_CODES.filter((c) => cats[c]).map((c) => <option key={c} value={c}>{cats[c]}</option>)}</select></div>
-            <div><label htmlFor="amount">Valor por mês (R$)</label><input id="amount" name="amount" inputMode="decimal" required placeholder="3.000,00" /></div>
-          </div>
-          <button type="submit" disabled={busy}>Adicionar custo</button>
-        </form>
-      </section>
-
-      <section className="card" aria-labelledby="res" aria-live="polite">
-        <h2 id="res">Como bater a meta</h2>
-        {!s ? <p aria-busy="true">Carregando…</p> : (
-          <>
-            <div className="kpis">
-              <div className="card kpi"><div className="label">Renda líquida</div><div className="value">{formatBRL(s.income_net_cents)}</div></div>
-              <div className="card kpi"><div className="label">Custos</div><div className="value">{formatBRL(s.costs.total_cents)}</div></div>
-              <div className="card kpi"><div className="label">Sobra no mês</div><div className="value">{formatBRL(s.result_cents)}</div></div>
-              {s.goal && <div className="card kpi"><div className="label">Meta</div><div className="value">{formatBRL(s.goal.target_cents)}</div></div>}
+      {step === 2 && (
+        <section aria-labelledby="p2">
+          <h2 id="p2">De onde vem sua renda?</h2>
+          {s && s.sources.map((x) => (
+            <article key={x.id} className="item card">
+              <div><strong>{x.name}</strong><div className="muted"><small>{x.units} por mês</small></div></div>
+              <div className="amt">{formatBRL(x.net_cents)}<small className="muted"> líquidos</small></div>
+              <button type="button" className="secondary" disabled={busy} aria-label={`Remover ${x.name}`} onClick={() => removeSource(x)}>Remover</button>
+            </article>
+          ))}
+          {s && s.sources.length === 0 && !adding && <p className="muted">Nenhuma renda ainda. Toque em um tipo para começar.</p>}
+          {!adding ? (
+            <div className="chips" role="group" aria-label="Adicionar renda">
+              {Object.entries(KINDS).map(([k, v]) => <button key={k} type="button" className="chip" onClick={() => { setKind(k); setAdding(true); }}>+ {v.label}</button>)}
             </div>
-            {s.status === "NO_GOAL" && <p>Defina sua meta no passo 1 para ver quanto falta.</p>}
-            {s.status === "NO_SOURCES" && <p>Adicione sua primeira renda no passo 2 para calcular.</p>}
-            {s.status === "MET" && (() => {
-              const slack = s.result_cents - (s.goal?.target_cents ?? 0);
-              return <p><strong>Meta atingida</strong> com o que você cadastrou{slack > 0 ? `, com folga de ${formatBRL(slack)}` : ""}. Priorize manter a reserva em vez de mais trabalho.</p>;
-            })()}
-            {s.status === "SHORT" && (
-              <>
-                <p><strong>Faltam {formatBRL(s.gap_cents ?? 0)}</strong> para a sua meta. Ideias:</p>
-                <ol>
+          ) : (
+            <form className="card" onSubmit={addSource} aria-label={cfg.label}>
+              <h3>{cfg.label}</h3>
+              <div className="grid2" key={kind}>
+                <div><label htmlFor="value">{cfg.value}</label><input id="value" name="value" inputMode="decimal" required placeholder="2.000,00" autoFocus /></div>
+                {kind !== "EMPLOYMENT" && <div><label htmlFor="qty">{cfg.qty}</label><input id="qty" name="qty" type="number" inputMode="numeric" min="1" step="1" required defaultValue={kind === "CONSULT" ? 40 : 4} /></div>}
+                <div><label htmlFor="hours">{cfg.time}</label><input id="hours" name="hours" inputMode="decimal" required defaultValue={cfg.hours} /></div>
+                {kind !== "CONSULT" && kind !== "EMPLOYMENT" && (
+                  <div><label htmlFor="regime">Você recebe como</label><select id="regime" name="regime" defaultValue="PJ"><option value="PJ">PJ (empresa)</option><option value="PF">PF (pessoa física)</option></select></div>
+                )}
+                <div><label htmlFor="name">Nome (opcional)</label><input id="name" name="name" placeholder={cfg.label} maxLength={200} /></div>
+              </div>
+              <div className="row">
+                <button type="submit" disabled={busy}>{busy ? "Salvando…" : "Adicionar"}</button>
+                <button type="button" className="secondary" onClick={() => setAdding(false)}>Cancelar</button>
+              </div>
+            </form>
+          )}
+          {limits?.works != null && <p className="muted"><small>Plano {ent?.plan_name}: até {limits.works} trabalhos. Consultas não entram nesse limite.</small></p>}
+        </section>
+      )}
+
+      {step === 3 && (
+        <section aria-labelledby="p3">
+          <h2 id="p3">Quais são seus custos por mês?</h2>
+          {s && s.costs.recurring.map((c) => (
+            <article key={c.id} className="item card">
+              <div><strong>{c.label}</strong></div>
+              <div className="amt">{formatBRL(c.amount_cents)}</div>
+              <button type="button" className="secondary" disabled={busy} aria-label={`Remover custo ${c.label}`} onClick={() => run(() => call(`/api/v1/recurrences/${c.id}`, { method: "DELETE" }))}>Remover</button>
+            </article>
+          ))}
+          {s && s.costs.other_cents > 0 && <p className="muted">Mais {formatBRL(s.costs.other_cents)} em despesas lançadas no mês (veja em <Link href="/app/finances">Meus custos</Link>).</p>}
+          <form className="card" onSubmit={addCost}>
+            <div className="grid2">
+              <div><label htmlFor="category">Custo</label><select id="category" name="category" defaultValue="aluguel">{COST_CODES.filter((c) => cats[c]).map((c) => <option key={c} value={c}>{cats[c]}</option>)}</select></div>
+              <div><label htmlFor="amount">Valor por mês (R$)</label><input id="amount" name="amount" inputMode="decimal" required placeholder="3.000,00" /></div>
+            </div>
+            <button type="submit" className="secondary" disabled={busy}>+ Adicionar custo</button>
+          </form>
+        </section>
+      )}
+
+      {step === 4 && (
+        <section aria-labelledby="res" aria-live="polite">
+          <h2 id="res">Como bater a meta</h2>
+          {!s ? <p aria-busy="true">Carregando…</p> : (
+            <>
+              <div className="kpis">
+                <div className="card kpi"><div className="label">Renda líquida</div><div className="value">{formatBRL(s.income_net_cents)}</div></div>
+                <div className="card kpi"><div className="label">Custos</div><div className="value">{formatBRL(s.costs.total_cents)}</div></div>
+                <div className="card kpi"><div className="label">Sobra no mês</div><div className="value">{formatBRL(s.result_cents)}</div></div>
+                {s.goal && <div className="card kpi"><div className="label">Meta</div><div className="value">{formatBRL(s.goal.target_cents)}</div></div>}
+              </div>
+              {s.status === "NO_GOAL" && <p>Defina sua meta no passo 1 para ver quanto falta.</p>}
+              {s.status === "NO_SOURCES" && <p>Adicione sua primeira renda no passo 2 para calcular.</p>}
+              {s.status === "MET" && (() => {
+                const slack = s.result_cents - (s.goal?.target_cents ?? 0);
+                return <p><strong>Meta atingida</strong> com o que você cadastrou{slack > 0 ? `, com folga de ${formatBRL(slack)}` : ""}. Priorize manter a reserva em vez de mais trabalho.</p>;
+              })()}
+              {s.status === "SHORT" && (
+                <>
+                  <p><strong>Faltam {formatBRL(s.gap_cents ?? 0)}</strong> para a sua meta. Ideias:</p>
                   {s.ideas.map((i, k) => (
-                    <li key={k}>
-                      <strong>{i.title}</strong> — {i.detail}
-                      {i.extra_minutes ? <> (cerca de {formatMinutes(i.extra_minutes)} a mais de trabalho)</> : null}
-                      {" "}<span className="muted">{i.closes_gap ? "fecha a meta" : "ajuda, mas não fecha sozinho"}</span>
-                    </li>
+                    <article key={k} className="idea card">
+                      <strong>{i.title}</strong>
+                      <p>{i.detail}{i.extra_minutes ? <> (cerca de {formatMinutes(i.extra_minutes)} a mais de trabalho)</> : null}</p>
+                      <span className={i.closes_gap ? "tag ok" : "tag"}>{i.closes_gap ? "fecha a meta" : "ajuda, mas não fecha sozinho"}</span>
+                    </article>
                   ))}
-                </ol>
-                <p><Link href="/app/optimizer">Testar combinações na sua agenda (Otimizador)</Link></p>
-              </>
-            )}
-            <ul className="muted">{s.notes.map((n) => <li key={n}><small>{n}</small></li>)}</ul>
-          </>
-        )}
-      </section>
+                  <p><Link href="/app/optimizer">Testar combinações na sua agenda (Otimizador)</Link></p>
+                </>
+              )}
+              <ul className="muted">{s.notes.map((n) => <li key={n}><small>{n}</small></li>)}</ul>
+            </>
+          )}
+        </section>
+      )}
+
+      <div className="wiznav">
+        {step > 1 ? <button type="button" className="secondary" onClick={goBack}>Voltar</button> : <span />}
+        {step < 4 && <button type="button" onClick={goNext}>{step === 3 ? "Ver ideias" : "Continuar"}</button>}
+      </div>
     </div>
   );
 }
